@@ -19,16 +19,15 @@ type Result struct {
 }
 
 type Options struct {
-	TUI           bool
-	JSON          bool
-	IgnoreCase    bool
-	Invert        bool
-	Regex         bool
-	Number        bool
-	Limit         int
-	Source        string
-	Mood          string
-	Color         string
+	Color   string
+	Verbose int
+	Quiet   bool
+
+	JSON   bool
+	Number bool
+	Limit  int
+	Source string
+
 	GifInput      string
 	StillAt       time.Duration
 	StillSet      bool

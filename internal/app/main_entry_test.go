@@ -26,20 +26,20 @@ func TestRunArgs(t *testing.T) {
 	})
 
 	t.Run("empty", func(t *testing.T) {
-		if code := Run(nil); code != 1 {
-			t.Fatalf("expected exit 1")
+		if code := Run(nil); code != 2 {
+			t.Fatalf("expected exit 2")
 		}
 	})
 
 	t.Run("bad args", func(t *testing.T) {
-		if code := Run([]string{"--nope"}); code != 1 {
-			t.Fatalf("expected exit 1")
+		if code := Run([]string{"--nope"}); code != 2 {
+			t.Fatalf("expected exit 2")
 		}
 	})
 
 	t.Run("bad source", func(t *testing.T) {
-		if code := Run([]string{"--source", "nope", "cats"}); code != 1 {
-			t.Fatalf("expected exit 1")
+		if code := Run([]string{"search", "--source", "nope", "cats"}); code != 2 {
+			t.Fatalf("expected exit 2")
 		}
 	})
 
@@ -57,14 +57,8 @@ func TestRunArgs(t *testing.T) {
 				SignalCh:   make(chan os.Signal),
 			}
 		})
-		if code := Run([]string{"--tui"}); code != 0 {
+		if code := Run([]string{"tui"}); code != 0 {
 			t.Fatalf("expected exit 0")
-		}
-	})
-
-	t.Run("tui with extract flags", func(t *testing.T) {
-		if code := Run([]string{"--tui", "--gif", "nope.gif", "--still", "0"}); code != 1 {
-			t.Fatalf("expected exit 1")
 		}
 	})
 
@@ -87,7 +81,7 @@ func TestRunArgs(t *testing.T) {
 			os.Stdout = oldStdout
 		})
 
-		code := Run([]string{"--gif", tmp.Name(), "--still", "0", "--out", "-"})
+		code := Run([]string{"still", tmp.Name(), "--at", "0", "--output", "-"})
 		_ = w.Close()
 		if code != 0 {
 			t.Fatalf("expected exit 0")
@@ -111,7 +105,7 @@ func TestRunTUIExitCodes(t *testing.T) {
 				IsTerminal: func(int) bool { return false },
 			}
 		})
-		if code := Run([]string{"--tui"}); code != 1 {
+		if code := Run([]string{"tui"}); code != 1 {
 			t.Fatalf("expected exit 1")
 		}
 	})
@@ -128,7 +122,7 @@ func TestRunTUIExitCodes(t *testing.T) {
 				},
 			}
 		})
-		if code := Run([]string{"--tui"}); code != 1 {
+		if code := Run([]string{"tui"}); code != 1 {
 			t.Fatalf("expected exit 1")
 		}
 	})

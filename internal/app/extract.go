@@ -17,22 +17,22 @@ import (
 
 func runExtract(opts model.Options) error {
 	if opts.GifInput == "" {
-		return errors.New("missing --gif")
+		return errors.New("missing GIF input")
 	}
-	if opts.StillSet && opts.StillsCount > 0 {
-		return errors.New("use --still or --stills, not both")
-	}
-	if !opts.StillSet && opts.StillsCount <= 0 {
-		return errors.New("missing --still or --stills")
-	}
-	if opts.StillsCount < 0 {
-		return errors.New("--stills must be > 0")
-	}
-	if opts.StillsCols < 0 {
-		return errors.New("--stills-cols must be >= 0")
-	}
-	if opts.StillsPadding < 0 {
-		return errors.New("--stills-padding must be >= 0")
+	if opts.StillSet {
+		if opts.StillsCount > 0 {
+			return errors.New("use still or sheet, not both")
+		}
+	} else {
+		if opts.StillsCount < 1 {
+			return errors.New("bad args: --frames must be >= 1")
+		}
+		if opts.StillsCols < 0 {
+			return errors.New("bad args: --cols must be >= 0")
+		}
+		if opts.StillsPadding < 0 {
+			return errors.New("bad args: --padding must be >= 0")
+		}
 	}
 
 	data, err := readInput(opts.GifInput)
@@ -70,7 +70,7 @@ func runExtract(opts model.Options) error {
 		if opts.StillSet {
 			outPath = "still.png"
 		} else {
-			outPath = "stills.png"
+			outPath = "sheet.png"
 		}
 	}
 	return writeOutput(outPath, output)

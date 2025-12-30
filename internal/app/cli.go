@@ -21,162 +21,350 @@ var (
 	errVersion = errors.New("version")
 )
 
-func parseArgs(args []string) (model.Options, string, error) {
-	var opts model.Options
-	var showHelp bool
-	var showVersion bool
-	var stillRaw string
-	var tuiOverride *bool
-	args = stripBoolFlag(args, "tui", &tuiOverride)
-	fs := flag.NewFlagSet(model.AppName, flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	fs.BoolVar(&showHelp, "help", false, "help")
-	fs.BoolVar(&showHelp, "h", false, "help")
-	fs.BoolVar(&showVersion, "version", false, "version")
-	fs.BoolVar(&opts.TUI, "tui", false, "interactive mode")
-	fs.BoolVar(&opts.JSON, "json", false, "json output")
-	fs.BoolVar(&opts.IgnoreCase, "i", false, "ignore case")
-	fs.BoolVar(&opts.Invert, "v", false, "invert vibe")
-	fs.BoolVar(&opts.Regex, "E", false, "regex search")
-	fs.BoolVar(&opts.Number, "n", false, "number results")
-	fs.IntVar(&opts.Limit, "m", 20, "max results")
-	fs.StringVar(&opts.Source, "source", "auto", "source: auto|tenor|giphy")
-	fs.StringVar(&opts.Mood, "mood", "", "mood filter")
-	fs.StringVar(&opts.Color, "color", "auto", "color: auto|always|never")
-	fs.StringVar(&opts.GifInput, "gif", "", "gif input path or URL")
-	fs.StringVar(&stillRaw, "still", "", "extract still at time (e.g. 1.5s)")
-	fs.IntVar(&opts.StillsCount, "stills", 0, "contact sheet frame count")
-	fs.IntVar(&opts.StillsCols, "stills-cols", 0, "contact sheet columns")
-	fs.IntVar(&opts.StillsPadding, "stills-padding", 2, "contact sheet padding (px)")
-	fs.StringVar(&opts.OutPath, "out", "", "output path or '-' for stdout")
+type usageError struct {
+	cmd string
+	msg string
+}
 
-	if err := fs.Parse(args); err != nil {
-		return opts, "", errors.New("bad args")
+func (e usageError) Error() string {
+	if e.msg == "" {
+		return "usage error"
+	}
+	return e.msg
+}
+
+func parseArgs(args []string) (string, model.Options, string, error) {
+	opts := model.Options{
+		Color:         "auto",
+		Limit:         20,
+		Source:        "auto",
+		StillsPadding: 2,
+	}
+
+	rest, showHelp, showVersion, err := stripGlobalFlags(&opts, args)
+	if err != nil {
+		return "", opts, "", usageError{cmd: "", msg: err.Error()}
+	}
+
+	if showVersion {
+		_, _ = fmt.Fprintf(os.Stdout, "%s %s\n", model.AppName, model.Version)
+		return "", opts, "", errVersion
+	}
+
+	if len(rest) == 0 {
+		if showHelp {
+			printHelpFor(os.Stdout, opts, "")
+			return "", opts, "", errHelp
+		}
+		return "", opts, "", usageError{cmd: "", msg: "missing query"}
+	}
+
+	cmd, cmdArgs := detectCommand(rest)
+	if cmd == "help" {
+		target := ""
+		if len(cmdArgs) > 0 {
+			target, _ = normalizeCommand(cmdArgs[0])
+		}
+		printHelpFor(os.Stdout, opts, target)
+		return "", opts, "", errHelp
 	}
 
 	if showHelp {
-		printUsage(os.Stdout, opts)
-		return opts, "", errHelp
-	}
-	if showVersion {
-		_, _ = fmt.Fprintf(os.Stdout, "%s %s\n", model.AppName, model.Version)
-		return opts, "", errVersion
+		printHelpFor(os.Stdout, opts, cmd)
+		return "", opts, "", errHelp
 	}
 
-	if stillRaw != "" {
-		parsed, err := parseDurationValue(stillRaw)
+	switch cmd {
+	case "search":
+		query, err := parseSearchArgs(&opts, cmdArgs)
 		if err != nil {
-			return opts, "", errors.New("bad args")
+			return "", opts, "", err
 		}
-		opts.StillSet = true
-		opts.StillAt = parsed
+		return "search", opts, query, nil
+	case "tui":
+		query, err := parseTUIArgs(&opts, cmdArgs)
+		if err != nil {
+			return "", opts, "", err
+		}
+		return "tui", opts, query, nil
+	case "still":
+		if err := parseStillArgs(&opts, cmdArgs); err != nil {
+			return "", opts, "", err
+		}
+		return "still", opts, "", nil
+	case "sheet":
+		if err := parseSheetArgs(&opts, cmdArgs); err != nil {
+			return "", opts, "", err
+		}
+		return "sheet", opts, "", nil
+	default:
+		return "", opts, "", usageError{cmd: "", msg: fmt.Sprintf("unknown command: %s", cmd)}
 	}
-	if tuiOverride != nil {
-		opts.TUI = *tuiOverride
+}
+
+func stripGlobalFlags(opts *model.Options, args []string) ([]string, bool, bool, error) {
+	if opts == nil {
+		return args, false, false, errors.New("missing opts")
+	}
+
+	var showHelp bool
+	var showVersion bool
+	rest := make([]string, 0, len(args))
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			rest = append(rest, args[i+1:]...)
+			break
+		}
+
+		switch {
+		case arg == "--help" || arg == "-h":
+			showHelp = true
+		case arg == "--version":
+			showVersion = true
+		case arg == "--no-color":
+			opts.Color = "never"
+		case strings.HasPrefix(arg, "--color="):
+			opts.Color = strings.TrimPrefix(arg, "--color=")
+		case arg == "--color":
+			if i+1 >= len(args) {
+				return nil, false, false, errors.New("missing value for --color")
+			}
+			i++
+			opts.Color = args[i]
+		case arg == "-v" || arg == "--verbose":
+			opts.Verbose++
+		case arg == "-q" || arg == "--quiet":
+			opts.Quiet = true
+		default:
+			rest = append(rest, arg)
+		}
+	}
+
+	opts.Color = strings.ToLower(strings.TrimSpace(opts.Color))
+	switch opts.Color {
+	case "", "auto":
+		opts.Color = "auto"
+	case "always", "never":
+	default:
+		return nil, false, false, fmt.Errorf("invalid --color: %q (expected auto|always|never)", opts.Color)
+	}
+
+	return rest, showHelp, showVersion, nil
+}
+
+func detectCommand(args []string) (string, []string) {
+	if len(args) == 0 {
+		return "help", nil
+	}
+	cmd, ok := normalizeCommand(args[0])
+	if ok {
+		return cmd, args[1:]
+	}
+	return "search", args
+}
+
+func normalizeCommand(raw string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "search":
+		return "search", true
+	case "tui", "browse":
+		return "tui", true
+	case "still":
+		return "still", true
+	case "sheet", "contact-sheet", "contactsheet", "stills":
+		return "sheet", true
+	case "help":
+		return "help", true
+	default:
+		return "", false
+	}
+}
+
+func parseSearchArgs(opts *model.Options, args []string) (string, error) {
+	fs := flag.NewFlagSet("search", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.BoolVar(&opts.JSON, "json", false, "json output")
+	fs.BoolVar(&opts.Number, "n", false, "number results")
+	fs.BoolVar(&opts.Number, "number", false, "number results")
+	fs.IntVar(&opts.Limit, "m", opts.Limit, "max results")
+	fs.IntVar(&opts.Limit, "max", opts.Limit, "max results")
+	fs.IntVar(&opts.Limit, "limit", opts.Limit, "max results")
+	fs.StringVar(&opts.Source, "source", opts.Source, "source: auto|tenor|giphy")
+
+	if err := fs.Parse(args); err != nil {
+		return "", usageError{cmd: "search", msg: "bad args"}
+	}
+	if opts.Limit < 1 {
+		return "", usageError{cmd: "search", msg: "bad args: --max must be >= 1"}
+	}
+	if !isValidSource(opts.Source) {
+		return "", usageError{cmd: "search", msg: "bad args: --source must be auto|tenor|giphy"}
 	}
 
 	query := strings.TrimSpace(strings.Join(fs.Args(), " "))
-	return opts, query, nil
+	if query == "" {
+		return "", usageError{cmd: "search", msg: "missing query"}
+	}
+	return query, nil
 }
 
-func printUsage(w io.Writer, opts model.Options) {
-	useColor := shouldUseColorForWriter(opts, w)
+func parseTUIArgs(opts *model.Options, args []string) (string, error) {
+	fs := flag.NewFlagSet("tui", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.IntVar(&opts.Limit, "m", opts.Limit, "max results")
+	fs.IntVar(&opts.Limit, "max", opts.Limit, "max results")
+	fs.IntVar(&opts.Limit, "limit", opts.Limit, "max results")
+	fs.StringVar(&opts.Source, "source", opts.Source, "source: auto|tenor|giphy")
 
-	name := model.AppName
-	version := model.Version
-	tagline := model.Tagline
-
-	header := fmt.Sprintf("%s %s — %s", name, version, tagline)
-	if useColor {
-		header = "\x1b[1m\x1b[36m" + name + "\x1b[0m" +
-			" " +
-			"\x1b[1m" + version + "\x1b[0m" +
-			"\x1b[90m — " + tagline + "\x1b[0m"
+	if err := fs.Parse(args); err != nil {
+		return "", usageError{cmd: "tui", msg: "bad args"}
+	}
+	if opts.Limit < 1 {
+		return "", usageError{cmd: "tui", msg: "bad args: --max must be >= 1"}
+	}
+	if !isValidSource(opts.Source) {
+		return "", usageError{cmd: "tui", msg: "bad args: --source must be auto|tenor|giphy"}
 	}
 
-	heading := func(s string) string {
-		if !useColor {
-			return s
-		}
-		return "\x1b[1m" + s + "\x1b[0m"
-	}
-
-	flagName := func(s string) string {
-		if !useColor {
-			return s
-		}
-		return "\x1b[36m" + s + "\x1b[0m"
-	}
-
-	_, _ = fmt.Fprintln(w, header)
-	_, _ = fmt.Fprintln(w, "")
-	_, _ = fmt.Fprintln(w, heading("Usage:"))
-	_, _ = fmt.Fprintln(w, "  gifgrep [flags] <query>")
-	_, _ = fmt.Fprintln(w, "  gifgrep --tui [flags] <query>")
-	_, _ = fmt.Fprintln(w, "  gifgrep --gif <path|url> --still <time> [--out <file>]")
-	_, _ = fmt.Fprintln(w, "  gifgrep --gif <path|url> --stills <N> [--stills-cols <N>] [--out <file>]")
-	_, _ = fmt.Fprintln(w, "")
-	_, _ = fmt.Fprintln(w, heading("Flags:"))
-	_, _ = fmt.Fprintln(w, "  "+flagName("-i")+"            ignore case")
-	_, _ = fmt.Fprintln(w, "  "+flagName("-v")+"            invert vibe (exclude mood)")
-	_, _ = fmt.Fprintln(w, "  "+flagName("-E")+"            regex filter over title+tags")
-	_, _ = fmt.Fprintln(w, "  "+flagName("-n")+"            number results")
-	_, _ = fmt.Fprintln(w, "  "+flagName("-m <N>")+"        max results")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--mood <s>")+"    mood filter")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--json")+"        json output")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--tui")+"         interactive mode")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--source <s>")+"  source (auto, tenor, giphy)")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--color <s>")+"   color (auto, always, never)")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--gif <s>")+"     gif input path or URL")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--still <s>")+"   extract still at time (e.g. 1.5s)")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--stills <N>")+"  contact sheet frame count")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--stills-cols <N>")+"    contact sheet columns")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--stills-padding <N>")+" contact sheet padding (px)")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--out <s>")+"     output path or '-' for stdout")
-	_, _ = fmt.Fprintln(w, "  "+flagName("--version")+"     show version")
-	_, _ = fmt.Fprintln(w, "  "+flagName("-h, --help")+"    show help")
+	query := strings.TrimSpace(strings.Join(fs.Args(), " "))
+	return query, nil
 }
 
-func parseDurationValue(raw string) (time.Duration, error) {
-	if raw == "" {
-		return 0, errors.New("empty duration")
-	}
-	if d, err := time.ParseDuration(raw); err == nil {
-		return d, nil
-	}
-	if secs, err := strconv.ParseFloat(raw, 64); err == nil {
-		if secs < 0 {
-			return 0, errors.New("negative duration")
-		}
-		return time.Duration(secs * float64(time.Second)), nil
-	}
-	return 0, errors.New("invalid duration")
-}
+func parseStillArgs(opts *model.Options, args []string) error {
+	var inputFlag string
+	var atRaw string
+	var outPath string
 
-func stripBoolFlag(args []string, name string, out **bool) []string {
-	if name == "" {
-		return args
+	inputPos := ""
+	if len(args) > 0 && args[0] != "--" && !strings.HasPrefix(args[0], "-") {
+		inputPos = args[0]
+		args = args[1:]
 	}
-	long := "--" + name
-	short := "-" + name
-	keep := make([]string, 0, len(args))
-	for _, arg := range args {
-		if arg == long || arg == short {
-			val := true
-			*out = &val
-			continue
-		}
-		keep = append(keep, arg)
-	}
-	return keep
-}
 
-func runScript(opts model.Options, query string) error {
-	results, err := search.Search(query, opts)
+	fs := flag.NewFlagSet("still", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&inputFlag, "gif", "", "gif input path or URL")
+	fs.StringVar(&atRaw, "at", "", "timestamp (e.g. 1.5s)")
+	fs.StringVar(&outPath, "o", "", "output path or '-' for stdout")
+	fs.StringVar(&outPath, "output", "", "output path or '-' for stdout")
+
+	if err := fs.Parse(args); err != nil {
+		return usageError{cmd: "still", msg: "bad args"}
+	}
+
+	input := strings.TrimSpace(inputFlag)
+	if input == "" {
+		input = strings.TrimSpace(inputPos)
+	}
+	pos := fs.Args()
+	if input == "" && len(pos) > 0 {
+		input = pos[0]
+		pos = pos[1:]
+	}
+	if input == "" {
+		return usageError{cmd: "still", msg: "missing GIF input"}
+	}
+	if len(pos) > 0 {
+		return usageError{cmd: "still", msg: "unexpected args"}
+	}
+	if strings.TrimSpace(atRaw) == "" {
+		return usageError{cmd: "still", msg: "missing --at"}
+	}
+	at, err := parseDurationValue(atRaw)
 	if err != nil {
-		return err
+		return usageError{cmd: "still", msg: "bad args: invalid --at"}
 	}
-	results, err = search.FilterResults(results, query, opts)
+
+	opts.GifInput = input
+	opts.StillSet = true
+	opts.StillAt = at
+	opts.OutPath = outPath
+	if strings.TrimSpace(opts.OutPath) == "" {
+		opts.OutPath = "still.png"
+	}
+	return nil
+}
+
+func parseSheetArgs(opts *model.Options, args []string) error {
+	var inputFlag string
+	var outPath string
+	frames := 12
+
+	inputPos := ""
+	if len(args) > 0 && args[0] != "--" && !strings.HasPrefix(args[0], "-") {
+		inputPos = args[0]
+		args = args[1:]
+	}
+
+	fs := flag.NewFlagSet("sheet", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&inputFlag, "gif", "", "gif input path or URL")
+	fs.IntVar(&frames, "frames", frames, "frame count")
+	fs.IntVar(&opts.StillsCols, "cols", opts.StillsCols, "columns")
+	fs.IntVar(&opts.StillsPadding, "padding", opts.StillsPadding, "padding (px)")
+	fs.StringVar(&outPath, "o", "", "output path or '-' for stdout")
+	fs.StringVar(&outPath, "output", "", "output path or '-' for stdout")
+
+	if err := fs.Parse(args); err != nil {
+		return usageError{cmd: "sheet", msg: "bad args"}
+	}
+
+	input := strings.TrimSpace(inputFlag)
+	if input == "" {
+		input = strings.TrimSpace(inputPos)
+	}
+	pos := fs.Args()
+	if input == "" && len(pos) > 0 {
+		input = pos[0]
+		pos = pos[1:]
+	}
+	if input == "" {
+		return usageError{cmd: "sheet", msg: "missing GIF input"}
+	}
+	if len(pos) > 0 {
+		return usageError{cmd: "sheet", msg: "unexpected args"}
+	}
+	if frames < 1 {
+		return usageError{cmd: "sheet", msg: "bad args: --frames must be >= 1"}
+	}
+	if opts.StillsCols < 0 {
+		return usageError{cmd: "sheet", msg: "bad args: --cols must be >= 0"}
+	}
+	if opts.StillsPadding < 0 {
+		return usageError{cmd: "sheet", msg: "bad args: --padding must be >= 0"}
+	}
+
+	opts.GifInput = input
+	opts.StillSet = false
+	opts.StillsCount = frames
+	opts.OutPath = outPath
+	if strings.TrimSpace(opts.OutPath) == "" {
+		opts.OutPath = "sheet.png"
+	}
+	return nil
+}
+
+func isValidSource(source string) bool {
+	source = strings.ToLower(strings.TrimSpace(source))
+	switch source {
+	case "", "auto", "tenor", "giphy":
+		return true
+	default:
+		return false
+	}
+}
+
+func runSearch(opts model.Options, query string) error {
+	if strings.TrimSpace(query) == "" {
+		return errors.New("missing query")
+	}
+	if opts.Verbose > 0 && !opts.Quiet {
+		_, _ = fmt.Fprintf(os.Stderr, "source=%s max=%d\n", search.ResolveSource(opts.Source), opts.Limit)
+	}
+
+	results, err := search.Search(query, opts)
 	if err != nil {
 		return err
 	}
@@ -187,31 +375,27 @@ func runScript(opts model.Options, query string) error {
 		return enc.Encode(results)
 	}
 
-	useColor := shouldUseColor(opts)
+	useColor := shouldUseColorForWriter(opts, os.Stdout)
 	for i, res := range results {
 		prefix := ""
 		if opts.Number {
 			prefix = fmt.Sprintf("%d\t", i+1)
 		}
-		label := res.Title
+		label := strings.Join(strings.Fields(res.Title), " ")
 		if label == "" {
-			label = res.ID
+			label = strings.Join(strings.Fields(res.ID), " ")
 		}
-		label = strings.Join(strings.Fields(label), " ")
 		if label == "" {
 			label = "untitled"
 		}
+		url := res.URL
 		if useColor {
 			label = "\x1b[1m" + label + "\x1b[0m"
-			res.URL = "\x1b[36m" + res.URL + "\x1b[0m"
+			url = "\x1b[36m" + url + "\x1b[0m"
 		}
-		_, _ = fmt.Fprintf(os.Stdout, "%s%s\t%s\n", prefix, label, res.URL)
+		_, _ = fmt.Fprintf(os.Stdout, "%s%s\t%s\n", prefix, label, url)
 	}
 	return nil
-}
-
-func shouldUseColor(opts model.Options) bool {
-	return shouldUseColorForWriter(opts, os.Stdout)
 }
 
 func shouldUseColorForWriter(opts model.Options, w io.Writer) bool {
@@ -233,4 +417,20 @@ func shouldUseColorForWriter(opts model.Options, w io.Writer) bool {
 		return false
 	}
 	return term.IsTerminal(int(f.Fd()))
+}
+
+func parseDurationValue(raw string) (time.Duration, error) {
+	if raw == "" {
+		return 0, errors.New("empty duration")
+	}
+	if d, err := time.ParseDuration(raw); err == nil {
+		return d, nil
+	}
+	if secs, err := strconv.ParseFloat(raw, 64); err == nil {
+		if secs < 0 {
+			return 0, errors.New("negative duration")
+		}
+		return time.Duration(secs * float64(time.Second)), nil
+	}
+	return 0, errors.New("invalid duration")
 }

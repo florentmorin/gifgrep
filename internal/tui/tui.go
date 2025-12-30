@@ -128,21 +128,16 @@ func runWith(env Env, opts model.Options, query string) error {
 		if err != nil {
 			state.status = "Search error: " + err.Error()
 		} else {
-			results, err = search.FilterResults(results, query, opts)
-			if err != nil {
-				state.status = "Filter error: " + err.Error()
+			state.results = results
+			state.selected = 0
+			state.scroll = 0
+			if len(results) == 0 {
+				state.status = "No results"
+				state.currentAnim = nil
+				state.previewDirty = true
 			} else {
-				state.results = results
-				state.selected = 0
-				state.scroll = 0
-				if len(results) == 0 {
-					state.status = "No results"
-					state.currentAnim = nil
-					state.previewDirty = true
-				} else {
-					state.status = fmt.Sprintf("%d results", len(results))
-					loadSelectedImage(state)
-				}
+				state.status = fmt.Sprintf("%d results", len(results))
+				loadSelectedImage(state)
 			}
 		}
 		state.renderDirty = true
@@ -262,21 +257,16 @@ func handleInput(state *appState, ev inputEvent, out *bufio.Writer) bool {
 			if err != nil {
 				state.status = "Search error: " + err.Error()
 			} else {
-				results, err = search.FilterResults(results, state.query, state.opts)
-				if err != nil {
-					state.status = "Filter error: " + err.Error()
+				state.results = results
+				state.selected = 0
+				state.scroll = 0
+				if len(results) == 0 {
+					state.status = "No results"
+					state.currentAnim = nil
+					state.previewDirty = true
 				} else {
-					state.results = results
-					state.selected = 0
-					state.scroll = 0
-					if len(results) == 0 {
-						state.status = "No results"
-						state.currentAnim = nil
-						state.previewDirty = true
-					} else {
-						state.status = fmt.Sprintf("%d results", len(results))
-						loadSelectedImage(state)
-					}
+					state.status = fmt.Sprintf("%d results", len(results))
+					loadSelectedImage(state)
 				}
 			}
 			state.mode = modeBrowse
