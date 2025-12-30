@@ -101,6 +101,7 @@ func runWith(env Env, opts model.Options, query string) error {
 	state := &appState{
 		mode:            modeQuery,
 		status:          "Type a search and press Enter",
+		tagline:         pickTagline(time.Now(), os.Getenv, nil),
 		cache:           map[string]*gifdecode.Frames{},
 		renderDirty:     true,
 		nextImageID:     1,
@@ -361,7 +362,7 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 		state.activeImageID = 0
 	}
 
-	drawHeader(out, state.useColor, cols)
+	drawHeader(out, state.useColor, cols, state.tagline)
 
 	if !layout.hasContent {
 		clearAll(out, rows, cols)
@@ -461,9 +462,12 @@ func buildLayout(state *appState, rows, cols int) layout {
 	return layout
 }
 
-func drawHeader(out *bufio.Writer, useColor bool, cols int) {
+func drawHeader(out *bufio.Writer, useColor bool, cols int, tagline string) {
 	header := styleIf(useColor, "gifgrep", "\x1b[1m", "\x1b[36m")
-	header += styleIf(useColor, " — Grep the GIF. Stick the landing.", "\x1b[90m")
+	if strings.TrimSpace(tagline) == "" {
+		tagline = "Grep the GIF. Stick the landing."
+	}
+	header += styleIf(useColor, " — "+tagline, "\x1b[90m")
 	writeLineAt(out, 1, 1, header, cols)
 }
 

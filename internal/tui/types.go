@@ -23,6 +23,7 @@ type gifAnimation struct {
 
 type appState struct {
 	query       string
+	tagline     string
 	results     []model.Result
 	selected    int
 	scroll      int
