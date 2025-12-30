@@ -146,9 +146,9 @@ func sampleIndices(frames []gifdecode.Frame, count int) []int {
 	total := totalDuration(frames)
 	if total <= 0 {
 		indices := make([]int, 0, count)
-		max := len(frames) - 1
+		maxIndex := len(frames) - 1
 		for i := 0; i < count; i++ {
-			idx := int(math.Round(float64(max) * float64(i) / float64(count-1)))
+			idx := int(math.Round(float64(maxIndex) * float64(i) / float64(count-1)))
 			indices = append(indices, idx)
 		}
 		return indices

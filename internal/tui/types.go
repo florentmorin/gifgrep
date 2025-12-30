@@ -39,15 +39,15 @@ type appState struct {
 		cols int
 		rows int
 	}
-	previewNeedsSend bool
-	previewDirty     bool
-	nextImageID      uint32
-	activeImageID    uint32
-	manualAnim       bool
-	manualFrame      int
-	manualNext       time.Time
-	useSoftwareAnim  bool
-	useColor         bool
-	opts             model.Options
+	previewNeedsSend      bool
+	previewDirty          bool
+	nextImageID           uint32
+	activeImageID         uint32
+	manualAnim            bool
+	manualFrame           int
+	manualNext            time.Time
+	useSoftwareAnim       bool
+	useColor              bool
+	opts                  model.Options
 	giphyAttributionShown bool
 }

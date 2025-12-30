@@ -493,7 +493,7 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 		}
 	}
 
-	searchLabel := "Search: "
+	var searchLabel string
 	if state.mode == modeQuery {
 		searchLabel = styleIf(state.useColor, "Search: ", "\x1b[1m", "\x1b[33m")
 	} else {

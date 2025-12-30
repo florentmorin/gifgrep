@@ -8,4 +8,3 @@ var giphyIcon32PNG []byte
 func GiphyIcon32PNG() []byte {
 	return giphyIcon32PNG
 }
-

@@ -15,4 +15,3 @@ func ResolveSource(source string) string {
 	}
 	return source
 }
-
