@@ -1,0 +1,18 @@
+{
+  "name": "gifgrep",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "go run ./cmd/gifgrep",
+    "tenor": "pnpm start",
+    "fmt": "gofumpt -w .",
+    "lint": "golangci-lint run",
+    "snap": "node scripts/ghostty-web-snap.mjs",
+    "build": "go build ./...",
+    "test": "go test ./...",
+    "check": "go vet ./..."
+  },
+  "devDependencies": {
+    "playwright": "^1.57.0"
+  }
+}

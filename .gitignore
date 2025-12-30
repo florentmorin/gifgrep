@@ -30,3 +30,8 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# OS / tooling
+.DS_Store
+node_modules/
+ghostty-web-snap.png
