@@ -26,6 +26,8 @@ func parseArgs(args []string) (model.Options, string, error) {
 	var showHelp bool
 	var showVersion bool
 	var stillRaw string
+	var tuiOverride *bool
+	args = stripBoolFlag(args, "tui", &tuiOverride)
 	fs := flag.NewFlagSet(model.AppName, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.BoolVar(&showHelp, "help", false, "help")
@@ -68,6 +70,9 @@ func parseArgs(args []string) (model.Options, string, error) {
 		}
 		opts.StillSet = true
 		opts.StillAt = parsed
+	}
+	if tuiOverride != nil {
+		opts.TUI = *tuiOverride
 	}
 
 	query := strings.TrimSpace(strings.Join(fs.Args(), " "))
@@ -116,6 +121,24 @@ func parseDurationValue(raw string) (time.Duration, error) {
 		return time.Duration(secs * float64(time.Second)), nil
 	}
 	return 0, errors.New("invalid duration")
+}
+
+func stripBoolFlag(args []string, name string, out **bool) []string {
+	if name == "" {
+		return args
+	}
+	long := "--" + name
+	short := "-" + name
+	keep := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg == long || arg == short {
+			val := true
+			*out = &val
+			continue
+		}
+		keep = append(keep, arg)
+	}
+	return keep
 }
 
 func runScript(opts model.Options, query string) error {

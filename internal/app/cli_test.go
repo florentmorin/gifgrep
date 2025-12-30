@@ -37,6 +37,14 @@ func TestParseArgs(t *testing.T) {
 		t.Fatalf("unexpected query: %q", query)
 	}
 
+	opts, query, err = parseArgs([]string{"cats", "--tui"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !opts.TUI || query != "cats" {
+		t.Fatalf("expected tui after query to be honored")
+	}
+
 	opts, query, err = parseArgs([]string{"--gif", "cat.gif", "--still", "1.5", "--out", "-", "ignored"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
