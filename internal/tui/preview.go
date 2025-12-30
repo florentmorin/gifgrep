@@ -1,6 +1,10 @@
-package app
+package tui
 
-import "time"
+import (
+	"time"
+
+	"github.com/steipete/gifgrep/gifdecode"
+)
 
 func loadSelectedImage(state *appState) {
 	if state.selected < 0 || state.selected >= len(state.results) {
@@ -22,7 +26,7 @@ func loadSelectedImage(state *appState) {
 			state.currentAnim = nil
 			return
 		}
-		decoded, err := decodeGIFFrames(data)
+		decoded, err := gifdecode.Decode(data, gifdecode.DefaultOptions())
 		if err != nil {
 			state.status = "Image error: " + err.Error()
 			state.currentAnim = nil

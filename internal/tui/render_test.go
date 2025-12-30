@@ -1,10 +1,13 @@
-package app
+package tui
 
 import (
 	"bufio"
 	"bytes"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/steipete/gifgrep/gifdecode"
 )
 
 func TestRenderDeletesOldImage(t *testing.T) {
@@ -29,7 +32,7 @@ func TestRenderWithPreviewRight(t *testing.T) {
 		results: []gifResult{{Title: "A"}},
 		currentAnim: &gifAnimation{
 			ID:     1,
-			Frames: []gifFrame{{PNG: []byte{1, 2, 3}, DelayMS: 80}},
+			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
 			Width:  200,
 			Height: 100,
 		},
@@ -50,7 +53,7 @@ func TestRenderWithPreviewBottom(t *testing.T) {
 		results: []gifResult{{Title: "A"}},
 		currentAnim: &gifAnimation{
 			ID:     2,
-			Frames: []gifFrame{{PNG: []byte{1, 2, 3}, DelayMS: 80}},
+			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
 			Width:  200,
 			Height: 100,
 		},
@@ -60,7 +63,7 @@ func TestRenderWithPreviewBottom(t *testing.T) {
 	out := bufio.NewWriter(&buf)
 	render(state, out, 24, 60)
 	_ = out.Flush()
-	if !strings.Contains(buf.String(), "Preview:") {
+	if !strings.Contains(buf.String(), "Preview") {
 		t.Fatalf("expected preview label")
 	}
 	if !strings.Contains(buf.String(), "a=T") {
@@ -72,7 +75,7 @@ func TestDrawPreviewPlacement(t *testing.T) {
 	state := &appState{
 		currentAnim: &gifAnimation{
 			ID:     3,
-			Frames: []gifFrame{{PNG: []byte{1, 2, 3}, DelayMS: 80}},
+			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
 		},
 		previewNeedsSend: false,
 		previewDirty:     false,
@@ -94,7 +97,7 @@ func TestDrawPreviewPlacement(t *testing.T) {
 func TestWriteLineAtClears(t *testing.T) {
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)
-	writeLineAt(out, 1, "hi", 0)
+	writeLineAt(out, 1, 1, "hi", 0)
 	_ = out.Flush()
 	if !strings.Contains(buf.String(), "\x1b[K") {
 		t.Fatalf("expected clear line")

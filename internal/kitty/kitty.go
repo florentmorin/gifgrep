@@ -1,10 +1,13 @@
-package app
+package kitty
 
 import (
 	"bufio"
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/steipete/gifgrep/gifdecode"
 )
 
 type kittyData struct {
@@ -14,7 +17,7 @@ type kittyData struct {
 	Cols        int
 	Rows        int
 	PlacementID int
-	DelayMS     int
+	Delay       time.Duration
 	NoCursor    bool
 }
 
@@ -35,17 +38,17 @@ func sendKittyAnimation(out *bufio.Writer, anim *gifAnimation, cols, rows int) {
 	for i := 1; i < len(anim.Frames); i++ {
 		frame := anim.Frames[i]
 		sendKittyData(out, kittyData{
-			Action:  "f",
-			ID:      anim.ID,
-			Data:    frame.PNG,
-			DelayMS: frame.DelayMS,
+			Action: "f",
+			ID:     anim.ID,
+			Data:   frame.PNG,
+			Delay:  frame.Delay,
 		})
 	}
-	sendKittyAnimDelay(out, anim.ID, clampDelay(base.DelayMS))
+	sendKittyAnimDelay(out, anim.ID, delayMS(base.Delay))
 	sendKittyAnimStart(out, anim.ID)
 }
 
-func sendKittyFrame(out *bufio.Writer, id uint32, frame gifFrame, cols, rows int) {
+func sendKittyFrame(out *bufio.Writer, id uint32, frame gifdecode.Frame, cols, rows int) {
 	sendKittyData(out, kittyData{
 		Action:      "T",
 		ID:          id,
@@ -91,8 +94,8 @@ func sendKittyData(out *bufio.Writer, data kittyData) {
 			if data.NoCursor {
 				params = append(params, "C=1")
 			}
-			if data.Action == "f" && data.DelayMS > 0 {
-				params = append(params, fmt.Sprintf("z=%d", data.DelayMS))
+			if data.Action == "f" && data.Delay > 0 {
+				params = append(params, fmt.Sprintf("z=%d", delayMS(data.Delay)))
 			}
 			_, _ = fmt.Fprintf(out, "\x1b_G%s;", strings.Join(params, ","))
 			first = false

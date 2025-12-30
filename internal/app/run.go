@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/tui"
 )
 
 func Run(args []string) int {
@@ -18,8 +21,8 @@ func Run(args []string) int {
 	}
 
 	if opts.TUI {
-		if err := runTUI(opts, query); err != nil {
-			if errors.Is(err, errNotTerminal) {
+		if err := tui.Run(opts, query); err != nil {
+			if errors.Is(err, tui.ErrNotTerminal) {
 				_, _ = fmt.Fprintln(os.Stderr, "stdin is not a tty")
 			} else {
 				_, _ = fmt.Fprintln(os.Stderr, err.Error())

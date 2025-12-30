@@ -1,10 +1,11 @@
-package app
+package tui
 
 import (
 	"bufio"
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHelpers(t *testing.T) {
@@ -39,7 +40,9 @@ func TestHelpers(t *testing.T) {
 	if !strings.Contains(buf.String(), "\x1b[1;1H") {
 		t.Fatalf("expected clamped cursor move")
 	}
-	if clampDelay(5) != 20 || clampDelay(2000) != 1000 || clampDelay(300) != 300 {
+	if clampDelay(5*time.Millisecond) != 10*time.Millisecond ||
+		clampDelay(2*time.Second) != time.Second ||
+		clampDelay(300*time.Millisecond) != 300*time.Millisecond {
 		t.Fatalf("clampDelay failed")
 	}
 	if maxInt(3, 2) != 3 || maxInt(1, 4) != 4 {
@@ -64,5 +67,12 @@ func TestHelpers(t *testing.T) {
 	t.Setenv("TERM", "xterm-256color")
 	if useSoftwareAnimation() {
 		t.Fatalf("expected software animation to be false")
+	}
+
+	if got := truncateANSI("\x1b[31mhello\x1b[0m", 3); got != "\x1b[31mhel\x1b[0m" {
+		t.Fatalf("truncateANSI failed: %q", got)
+	}
+	if visibleRuneLen("\x1b[31mhi\x1b[0m") != 2 {
+		t.Fatalf("visibleRuneLen failed")
 	}
 }

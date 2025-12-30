@@ -1,50 +1,18 @@
-package app
+package tui
 
 import (
 	"errors"
-	"image"
 	"net/http"
 	"testing"
+	"time"
+
+	"github.com/steipete/gifgrep/gifdecode"
 )
-
-func TestDecodeGIFFrames(t *testing.T) {
-	data := makeTestGIF()
-	frames, err := decodeGIFFrames(data)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
-	if len(frames.Frames) != 2 {
-		t.Fatalf("expected 2 frames, got %d", len(frames.Frames))
-	}
-	if frames.Width != 2 || frames.Height != 2 {
-		t.Fatalf("unexpected size")
-	}
-	if frames.Frames[0].DelayMS != 50 || frames.Frames[1].DelayMS != 70 {
-		t.Fatalf("unexpected delays: %+v", frames.Frames)
-	}
-
-	img := image.NewRGBA(image.Rect(0, 0, 3, 4))
-	pngData, err := encodePNG(img)
-	if err != nil {
-		t.Fatalf("encodePNG failed: %v", err)
-	}
-	frames, err = decodeGIFFrames(pngData)
-	if err != nil {
-		t.Fatalf("decodePNG failed: %v", err)
-	}
-	if len(frames.Frames) != 1 || frames.Width != 3 || frames.Height != 4 {
-		t.Fatalf("unexpected png decode result")
-	}
-
-	if _, err := decodeGIFFrames([]byte("nope")); err == nil {
-		t.Fatalf("expected decode error")
-	}
-}
 
 func TestLoadSelectedImageEdges(t *testing.T) {
 	state := &appState{
 		results: []gifResult{},
-		cache:   map[string]*gifFrames{},
+		cache:   map[string]*gifdecode.Frames{},
 	}
 	loadSelectedImage(state)
 	if state.currentAnim != nil {
@@ -58,8 +26,8 @@ func TestLoadSelectedImageEdges(t *testing.T) {
 		t.Fatalf("expected nil animation for empty preview url")
 	}
 
-	state.cache["https://example.test/preview.gif"] = &gifFrames{
-		Frames: []gifFrame{{PNG: []byte{1, 2, 3}, DelayMS: 80}},
+	state.cache["https://example.test/preview.gif"] = &gifdecode.Frames{
+		Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
 		Width:  1,
 		Height: 1,
 	}
@@ -71,7 +39,7 @@ func TestLoadSelectedImageEdges(t *testing.T) {
 
 	badTransport := &fakeTransport{gifData: []byte("not-a-gif")}
 	withTransport(t, badTransport, func() {
-		state.cache = map[string]*gifFrames{}
+		state.cache = map[string]*gifdecode.Frames{}
 		state.results = []gifResult{{Title: "bad", PreviewURL: "https://example.test/preview.gif"}}
 		state.selected = 0
 		loadSelectedImage(state)

@@ -8,6 +8,9 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/search"
 )
 
 var (
@@ -15,11 +18,11 @@ var (
 	errVersion = errors.New("version")
 )
 
-func parseArgs(args []string) (cliOptions, string, error) {
-	var opts cliOptions
+func parseArgs(args []string) (model.Options, string, error) {
+	var opts model.Options
 	var showHelp bool
 	var showVersion bool
-	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
+	fs := flag.NewFlagSet(model.AppName, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.BoolVar(&showHelp, "help", false, "help")
 	fs.BoolVar(&showHelp, "h", false, "help")
@@ -30,7 +33,7 @@ func parseArgs(args []string) (cliOptions, string, error) {
 	fs.BoolVar(&opts.Invert, "v", false, "invert vibe")
 	fs.BoolVar(&opts.Regex, "E", false, "regex search")
 	fs.BoolVar(&opts.Number, "n", false, "number results")
-	fs.IntVar(&opts.Limit, "m", 10, "max results")
+	fs.IntVar(&opts.Limit, "m", 20, "max results")
 	fs.StringVar(&opts.Source, "source", "tenor", "source: tenor")
 	fs.StringVar(&opts.Mood, "mood", "", "mood filter")
 	fs.StringVar(&opts.Color, "color", "auto", "color: auto|always|never")
@@ -44,7 +47,7 @@ func parseArgs(args []string) (cliOptions, string, error) {
 		return opts, "", errHelp
 	}
 	if showVersion {
-		_, _ = fmt.Fprintf(os.Stdout, "%s %s\n", appName, version)
+		_, _ = fmt.Fprintf(os.Stdout, "%s %s\n", model.AppName, model.Version)
 		return opts, "", errVersion
 	}
 
@@ -53,7 +56,7 @@ func parseArgs(args []string) (cliOptions, string, error) {
 }
 
 func printUsage(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "%s %s\n\n", appName, version)
+	_, _ = fmt.Fprintf(w, "%s %s\n\n", model.AppName, model.Version)
 	_, _ = fmt.Fprintln(w, "Usage:")
 	_, _ = fmt.Fprintln(w, "  gifgrep [flags] <query>")
 	_, _ = fmt.Fprintln(w, "  gifgrep --tui [flags] <query>")
@@ -72,12 +75,12 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  -h, --help    show help")
 }
 
-func runScript(opts cliOptions, query string) error {
-	results, err := search(query, opts)
+func runScript(opts model.Options, query string) error {
+	results, err := search.Search(query, opts)
 	if err != nil {
 		return err
 	}
-	results, err = filterResults(results, query, opts)
+	results, err = search.FilterResults(results, query, opts)
 	if err != nil {
 		return err
 	}

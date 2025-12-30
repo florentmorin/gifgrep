@@ -1,10 +1,13 @@
-package app
+package tui
 
 import (
 	"bufio"
 	"bytes"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/steipete/gifgrep/gifdecode"
 )
 
 func TestPreviewSize(t *testing.T) {
@@ -47,7 +50,7 @@ func TestHandleInputAndLoad(t *testing.T) {
 		state := &appState{
 			query: "cats",
 			mode:  modeQuery,
-			cache: map[string]*gifFrames{},
+			cache: map[string]*gifdecode.Frames{},
 			opts:  cliOptions{Limit: 1, Source: "tenor"},
 		}
 		var buf bytes.Buffer
@@ -152,8 +155,8 @@ func TestReadInput(t *testing.T) {
 }
 
 func TestDrawPreview(t *testing.T) {
-	frames := &gifFrames{
-		Frames: []gifFrame{{PNG: []byte{1, 2, 3}, DelayMS: 80}},
+	frames := &gifdecode.Frames{
+		Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
 		Width:  2,
 		Height: 2,
 	}
@@ -198,8 +201,8 @@ func TestRenderAndLines(t *testing.T) {
 	buf.Reset()
 	render(state, out, 20, 90)
 	_ = out.Flush()
-	if !strings.Contains(buf.String(), "Search [browse]") {
-		t.Fatalf("expected browse header")
+	if !strings.Contains(buf.String(), "Search:") {
+		t.Fatalf("expected search line")
 	}
 
 	buf.Reset()

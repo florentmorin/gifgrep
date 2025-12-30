@@ -1,4 +1,4 @@
-package app
+package tui
 
 import (
 	"bufio"
@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/steipete/gifgrep/gifdecode"
 )
 
 func TestSoftwareAnimationAdvance(t *testing.T) {
@@ -13,9 +15,9 @@ func TestSoftwareAnimationAdvance(t *testing.T) {
 		useSoftwareAnim: true,
 		currentAnim: &gifAnimation{
 			ID: 1,
-			Frames: []gifFrame{
-				{PNG: []byte{1, 2, 3}, DelayMS: 10},
-				{PNG: []byte{4, 5, 6}, DelayMS: 10},
+			Frames: []gifdecode.Frame{
+				{PNG: []byte{1, 2, 3}, Delay: 10 * time.Millisecond},
+				{PNG: []byte{4, 5, 6}, Delay: 10 * time.Millisecond},
 			},
 		},
 		previewNeedsSend: true,
@@ -47,8 +49,8 @@ func TestDrawPreviewSoftwareDirty(t *testing.T) {
 		useSoftwareAnim: true,
 		currentAnim: &gifAnimation{
 			ID: 1,
-			Frames: []gifFrame{
-				{PNG: []byte{1, 2, 3}, DelayMS: 10},
+			Frames: []gifdecode.Frame{
+				{PNG: []byte{1, 2, 3}, Delay: 10 * time.Millisecond},
 			},
 		},
 		activeImageID:    99,
@@ -78,10 +80,10 @@ func TestAdvanceManualAnimationGuards(t *testing.T) {
 	}
 
 	state.manualAnim = true
-	state.currentAnim = &gifAnimation{Frames: []gifFrame{{PNG: []byte{1}}}}
+	state.currentAnim = &gifAnimation{Frames: []gifdecode.Frame{{PNG: []byte{1}, Delay: 10 * time.Millisecond}}}
 	advanceManualAnimation(state, out)
 
-	state.currentAnim = &gifAnimation{Frames: []gifFrame{{PNG: []byte{1}}, {PNG: []byte{2}}}}
+	state.currentAnim = &gifAnimation{Frames: []gifdecode.Frame{{PNG: []byte{1}, Delay: 10 * time.Millisecond}, {PNG: []byte{2}, Delay: 10 * time.Millisecond}}}
 	state.lastPreview = struct{ cols, rows int }{cols: 0, rows: 0}
 	advanceManualAnimation(state, out)
 

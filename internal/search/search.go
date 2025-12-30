@@ -1,4 +1,4 @@
-package app
+package search
 
 import (
 	"encoding/json"
@@ -44,7 +44,7 @@ func fetchTenorV1(query string, opts cliOptions) ([]gifResult, error) {
 	}
 	limit := opts.Limit
 	if limit <= 0 {
-		limit = 10
+		limit = 20
 	}
 
 	params := url.Values{}

@@ -1,10 +1,13 @@
-package app
+package kitty
 
 import (
 	"bufio"
 	"bytes"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/steipete/gifgrep/gifdecode"
 )
 
 func TestKittySequences(t *testing.T) {
@@ -36,9 +39,9 @@ func TestKittySequences(t *testing.T) {
 	buf.Reset()
 	sendKittyAnimation(out, &gifAnimation{
 		ID: 2,
-		Frames: []gifFrame{
-			{PNG: []byte{1, 2, 3}, DelayMS: 80},
-			{PNG: []byte{4, 5, 6}, DelayMS: 90},
+		Frames: []gifdecode.Frame{
+			{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond},
+			{PNG: []byte{4, 5, 6}, Delay: 90 * time.Millisecond},
 		},
 	}, 5, 4)
 	_ = out.Flush()

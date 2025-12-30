@@ -1,4 +1,4 @@
-package app
+package tui
 
 import (
 	"bufio"
@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/steipete/gifgrep/gifdecode"
 	"golang.org/x/term"
 )
 
@@ -94,10 +95,11 @@ func runTUIWith(env tuiEnv, opts cliOptions, query string) error {
 	state := &appState{
 		mode:            modeQuery,
 		status:          "Type a search and press Enter",
-		cache:           map[string]*gifFrames{},
+		cache:           map[string]*gifdecode.Frames{},
 		renderDirty:     true,
 		nextImageID:     1,
 		useSoftwareAnim: useSoftwareAnimation(),
+		useColor:        opts.Color != "never",
 		opts:            opts,
 	}
 	if cols, rows, err := env.getSize(env.fd); err == nil {
@@ -105,7 +107,7 @@ func runTUIWith(env tuiEnv, opts cliOptions, query string) error {
 		state.lastCols = cols
 	}
 
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 
 	if strings.TrimSpace(query) != "" {
@@ -287,6 +289,13 @@ func handleInput(state *appState, ev inputEvent, out *bufio.Writer) bool {
 				state.renderDirty = true
 				return false
 			}
+			if ev.ch >= 0x20 {
+				state.mode = modeQuery
+				state.status = "Type a search and press Enter"
+				state.query = string(ev.ch)
+				state.renderDirty = true
+				return false
+			}
 		case keyUp:
 			if state.selected > 0 {
 				state.selected--
@@ -335,13 +344,15 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 		return
 	}
 
-	showRight := cols >= 70 && rows >= 12
+	showRight := cols >= 80 && rows >= 14
+	rightWidth := cols
 	leftWidth := cols
 	if showRight {
-		leftWidth = maxInt(24, (cols / 3))
-		if leftWidth > cols-2 {
-			leftWidth = cols - 2
+		rightWidth = maxInt(28, cols/3)
+		if rightWidth > cols-2 {
+			rightWidth = cols - 2
 		}
+		leftWidth = cols - rightWidth - 2
 	}
 
 	if state.currentAnim == nil && state.activeImageID != 0 {
@@ -349,34 +360,69 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 		state.activeImageID = 0
 	}
 
-	row := 1
-	writeLineAt(out, row, "gifgrep — GIF search (kitty protocol)", leftWidth)
-	row++
+	header := styleIf(state.useColor, "gifgrep", "\x1b[1m", "\x1b[36m")
+	header = header + styleIf(state.useColor, " — GIF search", "\x1b[90m")
+	writeLineAt(out, 1, 1, header, cols)
 
-	modeLabel := "browse"
-	if state.mode == modeQuery {
-		modeLabel = "query"
+	statusRow := rows - 2
+	searchRow := rows - 1
+	hintsRow := rows
+	if statusRow < 2 {
+		for row := 1; row <= rows; row++ {
+			writeLineAt(out, row, 1, "", cols)
+		}
+		return
 	}
-	writeLineAt(out, row, fmt.Sprintf("Search [%s]: %s", modeLabel, state.query), leftWidth)
-	row++
-	writeLineAt(out, row, "Enter=search  / edit  ↑↓ select  q quit", leftWidth)
-	row++
 
-	availCols, availRows := availablePreviewSize(rows, cols, leftWidth, showRight)
-	previewCols, previewRows := fitPreviewSize(availCols, availRows, state.currentAnim)
+	contentTop := 2
+	contentBottom := statusRow - 1
+	if contentBottom < contentTop {
+		for row := 1; row <= rows; row++ {
+			writeLineAt(out, row, 1, "", cols)
+		}
+		return
+	}
+	contentHeight := contentBottom - contentTop + 1
+
+	var previewCols, previewRows int
+	if showRight {
+		previewCols, previewRows = fitPreviewSize(leftWidth, contentHeight, state.currentAnim)
+	} else {
+		availRows := contentHeight / 2
+		if availRows < 6 {
+			availRows = minInt(6, contentHeight)
+		}
+		if availRows > contentHeight-2 {
+			availRows = maxInt(0, contentHeight-2)
+		}
+		previewCols, previewRows = fitPreviewSize(cols, availRows, state.currentAnim)
+	}
 	if state.currentAnim == nil {
 		previewCols = 0
 		previewRows = 0
 	}
-	listHeight := rows - 4
+
+	listCol := 1
+	listWidth := cols
+	if showRight {
+		listCol = leftWidth + 2
+		listWidth = rightWidth
+	}
+
+	listHeight := contentHeight
 	if !showRight && previewRows > 0 {
-		listHeight = rows - 4 - previewRows - 2
+		listHeight = contentHeight - previewRows - 1
 	}
 	if listHeight < 0 {
 		listHeight = 0
 	}
 
-	listStart := row
+	if showRight {
+		for i := 0; i < contentHeight; i++ {
+			writeLineAt(out, contentTop+i, 1, "", leftWidth)
+		}
+	}
+
 	for i := 0; i < listHeight; i++ {
 		idx := state.scroll + i
 		if idx >= 0 && idx < len(state.results) {
@@ -387,47 +433,59 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 			}
 			prefix := "  "
 			if idx == state.selected {
-				prefix = "> "
+				prefix = styleIf(state.useColor, "> ", "\x1b[1m", "\x1b[36m")
+				label = styleIf(state.useColor, label, "\x1b[1m")
 			}
-			writeLineAt(out, listStart+i, prefix+label, leftWidth)
+			writeLineAt(out, contentTop+i, listCol, prefix+label, listWidth)
 		} else {
-			writeLineAt(out, listStart+i, "", leftWidth)
+			writeLineAt(out, contentTop+i, listCol, "", listWidth)
 		}
 	}
-	row = listStart + listHeight
+
+	if state.currentAnim != nil && previewCols > 0 && previewRows > 0 {
+		if showRight {
+			state.previewCol = 1
+			state.previewRow = contentTop + maxInt(0, (contentHeight-previewRows)/2)
+			moveCursor(out, state.previewRow, state.previewCol)
+			drawPreview(state, out, previewCols, previewRows, state.previewRow, state.previewCol)
+		} else {
+			label := styleIf(state.useColor, "Preview", "\x1b[90m")
+			writeLineAt(out, contentTop+listHeight, 1, label, cols)
+			state.previewRow = contentTop + listHeight + 1
+			state.previewCol = 1
+			for i := 0; i < previewRows; i++ {
+				writeLineAt(out, state.previewRow+i, 1, "", cols)
+			}
+			moveCursor(out, state.previewRow, state.previewCol)
+			drawPreview(state, out, previewCols, previewRows, state.previewRow, state.previewCol)
+		}
+	}
 
 	status := state.status
 	if status == "" {
-		status = fmt.Sprintf("Results: %d", len(state.results))
+		status = fmt.Sprintf("%d results", len(state.results))
 	}
-	writeLineAt(out, row, status, leftWidth)
-	row++
+	status = styleIf(state.useColor, status, "\x1b[90m")
+	writeLineAt(out, statusRow, 1, status, cols)
 
-	if state.currentAnim != nil {
-		if previewCols > 0 && previewRows > 0 {
-			if showRight {
-				state.previewRow = 4
-				state.previewCol = leftWidth + 2
-				moveCursor(out, state.previewRow, state.previewCol)
-				drawPreview(state, out, previewCols, previewRows, state.previewRow, state.previewCol)
-			} else {
-				writeLineAt(out, row, "Preview:", leftWidth)
-				row++
-				state.previewRow = row
-				state.previewCol = 1
-				for i := 0; i < previewRows; i++ {
-					writeLineAt(out, row+i, "", cols)
-				}
-				moveCursor(out, state.previewRow, state.previewCol)
-				drawPreview(state, out, previewCols, previewRows, state.previewRow, state.previewCol)
-				row += previewRows
-			}
+	searchLabel := "Search: "
+	if state.mode == modeQuery {
+		searchLabel = styleIf(state.useColor, "Search: ", "\x1b[1m", "\x1b[33m")
+	} else {
+		searchLabel = styleIf(state.useColor, "Search: ", "\x1b[90m")
+	}
+	searchLine := searchLabel + state.query
+	writeLineAt(out, searchRow, 1, searchLine, cols)
+
+	hints := "Enter search  / edit  Up/Down select  q quit"
+	hints = styleIf(state.useColor, hints, "\x1b[90m")
+	writeLineAt(out, hintsRow, 1, hints, cols)
+
+	for row := 1; row <= rows; row++ {
+		if row == 1 || (row >= contentTop && row <= contentBottom) || row == statusRow || row == searchRow || row == hintsRow {
+			continue
 		}
-	}
-
-	for row <= rows {
-		writeLineAt(out, row, "", cols)
-		row++
+		writeLineAt(out, row, 1, "", cols)
 	}
 }
 
@@ -509,13 +567,13 @@ func drawPreview(state *appState, out *bufio.Writer, cols, rows int, row, col in
 	}
 }
 
-func writeLineAt(out *bufio.Writer, row int, text string, width int) {
-	moveCursor(out, row, 1)
+func writeLineAt(out *bufio.Writer, row, col int, text string, width int) {
+	moveCursor(out, row, col)
 	if width <= 0 {
 		_, _ = fmt.Fprint(out, "\x1b[K")
 		return
 	}
-	text = truncateRunes(text, width)
+	text = truncateANSI(text, width)
 	_, _ = fmt.Fprint(out, text)
 	_, _ = fmt.Fprint(out, "\x1b[K")
 }
@@ -536,7 +594,7 @@ func drawPreviewSoftware(state *appState, out *bufio.Writer, cols, rows int, row
 		moveCursor(out, row, col)
 		sendKittyFrame(out, state.activeImageID, frame, cols, rows)
 		restoreCursor(out)
-		state.manualNext = time.Now().Add(time.Duration(frame.DelayMS) * time.Millisecond)
+		state.manualNext = time.Now().Add(frame.Delay)
 		state.previewNeedsSend = false
 		state.previewDirty = false
 		state.lastPreview.cols = cols
@@ -578,7 +636,7 @@ func advanceManualAnimation(state *appState, out *bufio.Writer) {
 	moveCursor(out, state.previewRow, state.previewCol)
 	sendKittyFrame(out, state.activeImageID, frame, state.lastPreview.cols, state.lastPreview.rows)
 	restoreCursor(out)
-	state.manualNext = now.Add(time.Duration(frame.DelayMS) * time.Millisecond)
+	state.manualNext = now.Add(frame.Delay)
 	_ = out.Flush()
 }
 
@@ -587,7 +645,7 @@ func writeLine(out *bufio.Writer, text string, width int) {
 		_, _ = fmt.Fprint(out, "\r\n")
 		return
 	}
-	text = truncateRunes(text, width)
+	text = truncateANSI(text, width)
 	_, _ = fmt.Fprint(out, text)
 	_, _ = fmt.Fprint(out, "\x1b[K\r\n")
 }
