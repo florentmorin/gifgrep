@@ -49,4 +49,5 @@ type appState struct {
 	useSoftwareAnim  bool
 	useColor         bool
 	opts             model.Options
+	giphyAttributionShown bool
 }

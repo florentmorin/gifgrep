@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=JetBrains+Mono:wght@400;600&display=swap");
+
 :root {
   --paper: #f5f1e8;
   --ink: #12110f;
@@ -26,7 +28,7 @@ body {
     radial-gradient(900px 700px at 88% 24%, rgba(255, 59, 212, 0.10), rgba(255, 59, 212, 0) 55%),
     radial-gradient(1200px 900px at 50% 100%, rgba(18, 17, 15, 0.06), rgba(18, 17, 15, 0) 58%),
     var(--paper);
-  font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "New York", Georgia, serif;
+  font-family: "Fraunces", ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "New York", Georgia, serif;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
 }
@@ -94,7 +96,7 @@ a:hover {
 }
 
 .kicker {
-  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -129,7 +131,7 @@ h1 {
 }
 
 .pill {
-  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   padding: 7px 10px;
   border-radius: 999px;
@@ -150,7 +152,7 @@ h1 {
 }
 
 .terminal {
-  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   background: #0d0f12;
   color: rgba(255, 255, 255, 0.88);
   padding: 16px 16px 14px;
@@ -268,7 +270,7 @@ h1 {
 
 .code {
   flex: 1;
-  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   background: rgba(18, 17, 15, 0.06);
   border: 1px solid rgba(18, 17, 15, 0.12);
@@ -278,7 +280,7 @@ h1 {
 }
 
 button.copy {
-  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   padding: 10px 12px;
   border-radius: 12px;
@@ -304,7 +306,7 @@ button.copy:active {
 }
 
 .fineprint code {
-  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   background: rgba(18, 17, 15, 0.05);
   border: 1px solid rgba(18, 17, 15, 0.10);
@@ -337,6 +339,17 @@ button.copy:active {
   padding-bottom: 1px;
 }
 
+.links a.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.links a.badge img {
+  display: block;
+  filter: saturate(1.1);
+}
+
 .links a:hover {
   border-bottom-color: rgba(18, 17, 15, 0.45);
 }
@@ -350,7 +363,7 @@ button.copy:active {
   border-radius: 999px;
   background: rgba(18, 17, 15, 0.90);
   color: rgba(255, 255, 255, 0.92);
-  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   opacity: 0;
   pointer-events: none;
@@ -361,4 +374,3 @@ button.copy:active {
   opacity: 1;
   transform: translateX(-50%) translateY(-3px);
 }
-

@@ -20,12 +20,12 @@ gifgrep --tui "office handshake"
 ## GIF providers
 gifgrep supports multiple backends via `--source`:
 
-### Tenor (default)
-- Default provider (`--source tenor`)
+### Tenor (fallback)
+- Used when no `GIPHY_API_KEY` is set (`--source tenor`)
 - `TENOR_API_KEY` is optional; if unset, gifgrep uses Tenor’s public demo key.
 
-### Giphy
-- Use via `--source giphy`
+### Giphy (preferred)
+- Preferred when `GIPHY_API_KEY` is set (`--source giphy`)
 - Requires `GIPHY_API_KEY` (no fallback).
 
 Create a GIPHY key:
@@ -62,7 +62,7 @@ gifgrep --tui [flags] <query>
 --mood <s>    mood filter
 --json        json output
 --tui         interactive mode
---source <s>  source (tenor)
+--source <s>  source (auto, tenor, giphy)
 --version     show version
 ```
 
@@ -73,7 +73,7 @@ gifgrep --tui [flags] <query>
 
 ## Environment variables
 - `TENOR_API_KEY` (optional): defaults to Tenor’s public demo key if unset
-- `GIPHY_API_KEY` (required for `--source giphy`)
+- `GIPHY_API_KEY` (optional): if set, gifgrep defaults to Giphy (`--source auto`)
 - `GIFGREP_SOFTWARE_ANIM=1` (optional): force software animation (auto-detects Ghostty)
 - `GIFGREP_CELL_ASPECT=0.5` (optional): tweak preview sizing for your terminal’s cell geometry
 

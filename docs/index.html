@@ -25,7 +25,7 @@
     <div class="wrap">
       <div class="top">
         <div class="brand">
-          <div class="kicker">CLI / TUI · Tenor · kitty graphics</div>
+          <div class="kicker">CLI / TUI · GIPHY (preferred) · Tenor · kitty graphics</div>
           <h1>🧲 gifgrep</h1>
           <p class="tagline">
             <strong>Grep the GIF. Stick the landing.</strong> Scriptable URLs/JSON by default, plus a TUI that previews
@@ -37,8 +37,8 @@
             <div class="pill"><b>--tui</b> for arrow-key browsing</div>
           </div>
           <p class="fineprint">
-            Needs a Tenor API key? Optional. Set <code>TENOR_API_KEY</code> or it falls back to Tenor’s public demo key.
-            Inline previews need Kitty or Ghostty.
+            If <code>GIPHY_API_KEY</code> is set, gifgrep prefers GIPHY. Otherwise it uses Tenor (with an optional
+            <code>TENOR_API_KEY</code> or Tenor’s public demo key). Inline previews need Kitty or Ghostty.
           </p>
         </div>
 
@@ -125,9 +125,13 @@ $ gifgrep --tui "office handshake"
       <div class="footer">
         <div class="links">
           <a href="https://github.com/steipete/gifgrep">github.com/steipete/gifgrep</a>
+          <a class="badge" href="https://developers.giphy.com" aria-label="GIPHY Developers">
+            <img src="assets/giphy-32.png" width="16" height="16" alt="GIPHY" />
+            GIPHY
+          </a>
           <a href="https://tenor.com">Tenor</a>
         </div>
-        <div>© Peter Steinberger · MIT · GIFs courtesy Tenor</div>
+        <div>© <a href="https://steipete.me">Peter Steinberger</a> · MIT · GIFs courtesy GIPHY + Tenor</div>
       </div>
     </div>
 

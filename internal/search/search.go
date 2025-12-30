@@ -28,7 +28,7 @@ type mediaV1 struct {
 }
 
 func Search(query string, opts model.Options) ([]model.Result, error) {
-	switch opts.Source {
+	switch ResolveSource(opts.Source) {
 	case "tenor":
 		return fetchTenorV1(query, opts)
 	case "giphy":

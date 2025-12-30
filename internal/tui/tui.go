@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/steipete/gifgrep/gifdecode"
+	"github.com/steipete/gifgrep/internal/assets"
 	"github.com/steipete/gifgrep/internal/kitty"
 	"github.com/steipete/gifgrep/internal/model"
 	"github.com/steipete/gifgrep/internal/search"
@@ -36,6 +37,8 @@ const (
 )
 
 var ErrNotTerminal = errors.New("stdin is not a tty")
+
+const giphyAttributionImageID uint32 = 0x67697068 // "giph"
 
 func Run(opts model.Options, query string) error {
 	env := defaultEnvFn()
@@ -468,8 +471,27 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 	if status == "" {
 		status = fmt.Sprintf("%d results", len(state.results))
 	}
+	source := search.ResolveSource(state.opts.Source)
+	showGiphyAttribution := source == "giphy"
+	logoCols := 2
+	logoRows := 1
+	statusWidth := cols
+	if showGiphyAttribution {
+		status += " · Powered by GIPHY"
+		statusWidth = maxInt(0, cols-(logoCols+1))
+	}
 	status = styleIf(state.useColor, status, "\x1b[90m")
-	writeLineAt(out, statusRow, 1, status, cols)
+	writeLineAt(out, statusRow, 1, status, statusWidth)
+	if showGiphyAttribution && cols >= logoCols {
+		moveCursor(out, statusRow, maxInt(1, cols-logoCols+1))
+		kitty.SendFrame(out, giphyAttributionImageID, gifdecode.Frame{PNG: assets.GiphyIcon32PNG()}, logoCols, logoRows)
+		state.giphyAttributionShown = true
+	} else {
+		if state.giphyAttributionShown {
+			kitty.DeleteImage(out, giphyAttributionImageID)
+			state.giphyAttributionShown = false
+		}
+	}
 
 	searchLabel := "Search: "
 	if state.mode == modeQuery {

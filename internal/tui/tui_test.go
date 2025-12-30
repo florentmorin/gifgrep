@@ -187,6 +187,7 @@ func TestRenderAndLines(t *testing.T) {
 		mode:    modeBrowse,
 		results: []model.Result{{Title: "A cat"}, {Title: "B cat"}},
 		status:  "10 results",
+		opts:    model.Options{Source: "tenor"},
 	}
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)

@@ -17,6 +17,7 @@ func TestRenderDeletesOldImage(t *testing.T) {
 		results:       []model.Result{{Title: "A"}},
 		activeImageID: 7,
 		currentAnim:   nil,
+		opts:          model.Options{Source: "tenor"},
 	}
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)
@@ -38,6 +39,7 @@ func TestRenderWithPreviewRight(t *testing.T) {
 			Height: 100,
 		},
 		previewNeedsSend: true,
+		opts:             model.Options{Source: "tenor"},
 	}
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)
@@ -59,6 +61,7 @@ func TestRenderWithPreviewBottom(t *testing.T) {
 			Height: 100,
 		},
 		previewNeedsSend: true,
+		opts:             model.Options{Source: "tenor"},
 	}
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)
@@ -81,6 +84,7 @@ func TestDrawPreviewPlacement(t *testing.T) {
 		previewNeedsSend: false,
 		previewDirty:     false,
 		activeImageID:    3,
+		opts:             model.Options{Source: "tenor"},
 		lastPreview: struct {
 			cols int
 			rows int
