@@ -4,7 +4,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
@@ -84,20 +83,6 @@ func visibleRuneLen(s string) int {
 
 func runeLen(s string) int {
 	return len([]rune(s))
-}
-
-func clampDelay(delay time.Duration) time.Duration {
-	if delay < 10*time.Millisecond {
-		return 10 * time.Millisecond
-	}
-	if delay > time.Second {
-		return time.Second
-	}
-	return delay
-}
-
-func delayMS(delay time.Duration) int {
-	return int(clampDelay(delay).Milliseconds())
 }
 
 func maxInt(a, b int) int {

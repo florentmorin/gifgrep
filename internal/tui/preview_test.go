@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"github.com/steipete/gifgrep/gifdecode"
+	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/testutil"
 )
 
 func TestLoadSelectedImageEdges(t *testing.T) {
 	state := &appState{
-		results: []gifResult{},
+		results: []model.Result{},
 		cache:   map[string]*gifdecode.Frames{},
 	}
 	loadSelectedImage(state)
@@ -19,7 +21,7 @@ func TestLoadSelectedImageEdges(t *testing.T) {
 		t.Fatalf("expected nil animation for empty results")
 	}
 
-	state.results = []gifResult{{Title: "no preview"}}
+	state.results = []model.Result{{Title: "no preview"}}
 	state.selected = 0
 	loadSelectedImage(state)
 	if state.currentAnim != nil {
@@ -31,16 +33,16 @@ func TestLoadSelectedImageEdges(t *testing.T) {
 		Width:  1,
 		Height: 1,
 	}
-	state.results = []gifResult{{Title: "cached", PreviewURL: "https://example.test/preview.gif"}}
+	state.results = []model.Result{{Title: "cached", PreviewURL: "https://example.test/preview.gif"}}
 	loadSelectedImage(state)
 	if state.currentAnim == nil || !state.previewNeedsSend {
 		t.Fatalf("expected cached animation")
 	}
 
-	badTransport := &fakeTransport{gifData: []byte("not-a-gif")}
-	withTransport(t, badTransport, func() {
+	badTransport := &testutil.FakeTransport{GIFData: []byte("not-a-gif")}
+	testutil.WithTransport(t, badTransport, func() {
 		state.cache = map[string]*gifdecode.Frames{}
-		state.results = []gifResult{{Title: "bad", PreviewURL: "https://example.test/preview.gif"}}
+		state.results = []model.Result{{Title: "bad", PreviewURL: "https://example.test/preview.gif"}}
 		state.selected = 0
 		loadSelectedImage(state)
 		if state.currentAnim != nil {
@@ -56,7 +58,7 @@ func (t *errTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestFetchGIFError(t *testing.T) {
-	withTransport(t, &errTransport{}, func() {
+	testutil.WithTransport(t, &errTransport{}, func() {
 		if _, err := fetchGIF("https://example.test/preview.gif"); err == nil {
 			t.Fatalf("expected fetch error")
 		}

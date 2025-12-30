@@ -21,34 +21,34 @@ type kittyData struct {
 	NoCursor    bool
 }
 
-func sendKittyAnimation(out *bufio.Writer, anim *gifAnimation, cols, rows int) {
-	if anim == nil || len(anim.Frames) == 0 {
+func SendAnimation(out *bufio.Writer, id uint32, frames []gifdecode.Frame, cols, rows int) {
+	if len(frames) == 0 {
 		return
 	}
-	base := anim.Frames[0]
+	base := frames[0]
 	sendKittyData(out, kittyData{
 		Action:      "T",
-		ID:          anim.ID,
+		ID:          id,
 		Data:        base.PNG,
 		Cols:        cols,
 		Rows:        rows,
 		PlacementID: 1,
 		NoCursor:    true,
 	})
-	for i := 1; i < len(anim.Frames); i++ {
-		frame := anim.Frames[i]
+	for i := 1; i < len(frames); i++ {
+		frame := frames[i]
 		sendKittyData(out, kittyData{
 			Action: "f",
-			ID:     anim.ID,
+			ID:     id,
 			Data:   frame.PNG,
 			Delay:  frame.Delay,
 		})
 	}
-	sendKittyAnimDelay(out, anim.ID, delayMS(base.Delay))
-	sendKittyAnimStart(out, anim.ID)
+	sendKittyAnimDelay(out, id, delayMS(base.Delay))
+	sendKittyAnimStart(out, id)
 }
 
-func sendKittyFrame(out *bufio.Writer, id uint32, frame gifdecode.Frame, cols, rows int) {
+func SendFrame(out *bufio.Writer, id uint32, frame gifdecode.Frame, cols, rows int) {
 	sendKittyData(out, kittyData{
 		Action:      "T",
 		ID:          id,
@@ -122,16 +122,30 @@ func sendKittyAnimStart(out *bufio.Writer, id uint32) {
 	_, _ = fmt.Fprintf(out, "\x1b_Ga=a,i=%d,s=3,v=1,q=2\x1b\\", id)
 }
 
-func placeKittyImage(out *bufio.Writer, id uint32, cols, rows int) {
+func PlaceImage(out *bufio.Writer, id uint32, cols, rows int) {
 	if id == 0 {
 		return
 	}
 	_, _ = fmt.Fprintf(out, "\x1b_Ga=p,i=%d,p=1,c=%d,r=%d,C=1,q=2\x1b\\", id, cols, rows)
 }
 
-func deleteKittyImage(out *bufio.Writer, id uint32) {
+func DeleteImage(out *bufio.Writer, id uint32) {
 	if id == 0 {
 		return
 	}
 	_, _ = fmt.Fprintf(out, "\x1b_Ga=d,d=I,i=%d,q=2\x1b\\", id)
+}
+
+func clampDelay(delay time.Duration) time.Duration {
+	if delay < 10*time.Millisecond {
+		return 10 * time.Millisecond
+	}
+	if delay > time.Second {
+		return time.Second
+	}
+	return delay
+}
+
+func delayMS(delay time.Duration) int {
+	return int(clampDelay(delay).Milliseconds())
 }

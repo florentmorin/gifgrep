@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/steipete/gifgrep/gifdecode"
+	"github.com/steipete/gifgrep/internal/kitty"
+	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/search"
 	"golang.org/x/term"
 )
 
@@ -32,50 +35,50 @@ const (
 	keyUnknown
 )
 
-var errNotTerminal = errors.New("stdin is not a tty")
+var ErrNotTerminal = errors.New("stdin is not a tty")
 
-func runTUI(opts cliOptions, query string) error {
+func Run(opts model.Options, query string) error {
 	env := defaultEnvFn()
-	return runTUIWith(env, opts, query)
+	return runWith(env, opts, query)
 }
 
-func runTUIWith(env tuiEnv, opts cliOptions, query string) error {
-	if env.in == nil {
-		env.in = os.Stdin
+func runWith(env Env, opts model.Options, query string) error {
+	if env.In == nil {
+		env.In = os.Stdin
 	}
-	if env.out == nil {
-		env.out = os.Stdout
+	if env.Out == nil {
+		env.Out = os.Stdout
 	}
-	if env.isTerminal == nil {
-		env.isTerminal = term.IsTerminal
+	if env.IsTerminal == nil {
+		env.IsTerminal = term.IsTerminal
 	}
-	if env.makeRaw == nil {
-		env.makeRaw = term.MakeRaw
+	if env.MakeRaw == nil {
+		env.MakeRaw = term.MakeRaw
 	}
-	if env.restore == nil {
-		env.restore = term.Restore
+	if env.Restore == nil {
+		env.Restore = term.Restore
 	}
-	if env.getSize == nil {
-		env.getSize = term.GetSize
+	if env.GetSize == nil {
+		env.GetSize = term.GetSize
 	}
-	if env.fd == 0 {
-		env.fd = int(os.Stdin.Fd())
+	if env.FD == 0 {
+		env.FD = int(os.Stdin.Fd())
 	}
-	if !env.isTerminal(env.fd) {
-		return errNotTerminal
+	if !env.IsTerminal(env.FD) {
+		return ErrNotTerminal
 	}
 
-	oldState, err := env.makeRaw(env.fd)
+	oldState, err := env.MakeRaw(env.FD)
 	if err != nil {
 		return err
 	}
 	if oldState != nil {
 		defer func() {
-			_ = env.restore(env.fd, oldState)
+			_ = env.Restore(env.FD, oldState)
 		}()
 	}
 
-	out := bufio.NewWriter(env.out)
+	out := bufio.NewWriter(env.Out)
 	hideCursor(out)
 	defer func() {
 		showCursor(out)
@@ -83,14 +86,14 @@ func runTUIWith(env tuiEnv, opts cliOptions, query string) error {
 		_ = out.Flush()
 	}()
 
-	sigs := env.signalCh
+	sigs := env.SignalCh
 	if sigs == nil {
 		sigs = make(chan os.Signal)
 	}
 
 	inputCh := make(chan inputEvent, 16)
 	stopCh := make(chan struct{})
-	go readInput(env.in, inputCh, stopCh)
+	go readInput(env.In, inputCh, stopCh)
 
 	state := &appState{
 		mode:            modeQuery,
@@ -102,7 +105,7 @@ func runTUIWith(env tuiEnv, opts cliOptions, query string) error {
 		useColor:        opts.Color != "never",
 		opts:            opts,
 	}
-	if cols, rows, err := env.getSize(env.fd); err == nil {
+	if cols, rows, err := env.GetSize(env.FD); err == nil {
 		state.lastRows = rows
 		state.lastCols = cols
 	}
@@ -117,11 +120,11 @@ func runTUIWith(env tuiEnv, opts cliOptions, query string) error {
 		render(state, out, state.lastRows, state.lastCols)
 		_ = out.Flush()
 
-		results, err := search(query, opts)
+		results, err := search.Search(query, opts)
 		if err != nil {
 			state.status = "Search error: " + err.Error()
 		} else {
-			results, err = filterResults(results, query, opts)
+			results, err = search.FilterResults(results, query, opts)
 			if err != nil {
 				state.status = "Filter error: " + err.Error()
 			} else {
@@ -154,7 +157,7 @@ func runTUIWith(env tuiEnv, opts cliOptions, query string) error {
 		case <-ticker.C:
 		}
 
-		if cols, rows, err := env.getSize(env.fd); err == nil {
+		if cols, rows, err := env.GetSize(env.FD); err == nil {
 			if rows != state.lastRows || cols != state.lastCols {
 				state.lastRows = rows
 				state.lastCols = cols
@@ -251,14 +254,14 @@ func handleInput(state *appState, ev inputEvent, out *bufio.Writer) bool {
 			render(state, out, state.lastRows, state.lastCols)
 			_ = out.Flush()
 
-			results, err := search(state.query, state.opts)
-			if err != nil {
-				state.status = "Search error: " + err.Error()
-			} else {
-				results, err = filterResults(results, state.query, state.opts)
+				results, err := search.Search(state.query, state.opts)
 				if err != nil {
-					state.status = "Filter error: " + err.Error()
+					state.status = "Search error: " + err.Error()
 				} else {
+					results, err = search.FilterResults(results, state.query, state.opts)
+					if err != nil {
+						state.status = "Filter error: " + err.Error()
+					} else {
 					state.results = results
 					state.selected = 0
 					state.scroll = 0
@@ -356,7 +359,7 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 	}
 
 	if state.currentAnim == nil && state.activeImageID != 0 {
-		deleteKittyImage(out, state.activeImageID)
+		kitty.DeleteImage(out, state.activeImageID)
 		state.activeImageID = 0
 	}
 
@@ -547,12 +550,12 @@ func drawPreview(state *appState, out *bufio.Writer, cols, rows int, row, col in
 		drawPreviewSoftware(state, out, cols, rows, row, col)
 		return
 	}
-	if state.previewNeedsSend {
-		if state.activeImageID != 0 {
-			deleteKittyImage(out, state.activeImageID)
-		}
-		state.activeImageID = state.currentAnim.ID
-		sendKittyAnimation(out, state.currentAnim, cols, rows)
+		if state.previewNeedsSend {
+			if state.activeImageID != 0 {
+				kitty.DeleteImage(out, state.activeImageID)
+			}
+			state.activeImageID = state.currentAnim.ID
+			kitty.SendAnimation(out, state.currentAnim.ID, state.currentAnim.Frames, cols, rows)
 		state.previewNeedsSend = false
 		state.previewDirty = false
 		state.lastPreview.cols = cols
@@ -560,7 +563,7 @@ func drawPreview(state *appState, out *bufio.Writer, cols, rows int, row, col in
 		return
 	}
 	if state.previewDirty || state.lastPreview.cols != cols || state.lastPreview.rows != rows {
-		placeKittyImage(out, state.activeImageID, cols, rows)
+		kitty.PlaceImage(out, state.activeImageID, cols, rows)
 		state.previewDirty = false
 		state.lastPreview.cols = cols
 		state.lastPreview.rows = rows
@@ -583,7 +586,7 @@ func drawPreviewSoftware(state *appState, out *bufio.Writer, cols, rows int, row
 		return
 	}
 	if state.activeImageID != 0 && state.activeImageID != state.currentAnim.ID {
-		deleteKittyImage(out, state.activeImageID)
+		kitty.DeleteImage(out, state.activeImageID)
 	}
 	state.activeImageID = state.currentAnim.ID
 	if state.previewNeedsSend {
@@ -592,7 +595,7 @@ func drawPreviewSoftware(state *appState, out *bufio.Writer, cols, rows int, row
 		frame := state.currentAnim.Frames[state.manualFrame]
 		saveCursor(out)
 		moveCursor(out, row, col)
-		sendKittyFrame(out, state.activeImageID, frame, cols, rows)
+		kitty.SendFrame(out, state.activeImageID, frame, cols, rows)
 		restoreCursor(out)
 		state.manualNext = time.Now().Add(frame.Delay)
 		state.previewNeedsSend = false
@@ -605,7 +608,7 @@ func drawPreviewSoftware(state *appState, out *bufio.Writer, cols, rows int, row
 		frame := state.currentAnim.Frames[state.manualFrame]
 		saveCursor(out)
 		moveCursor(out, row, col)
-		sendKittyFrame(out, state.activeImageID, frame, cols, rows)
+		kitty.SendFrame(out, state.activeImageID, frame, cols, rows)
 		restoreCursor(out)
 		state.previewDirty = false
 		state.lastPreview.cols = cols
@@ -634,7 +637,7 @@ func advanceManualAnimation(state *appState, out *bufio.Writer) {
 	frame := state.currentAnim.Frames[state.manualFrame]
 	saveCursor(out)
 	moveCursor(out, state.previewRow, state.previewCol)
-	sendKittyFrame(out, state.activeImageID, frame, state.lastPreview.cols, state.lastPreview.rows)
+	kitty.SendFrame(out, state.activeImageID, frame, state.lastPreview.cols, state.lastPreview.rows)
 	restoreCursor(out)
 	state.manualNext = now.Add(frame.Delay)
 	_ = out.Flush()

@@ -6,6 +6,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/testutil"
 )
 
 func TestParseArgs(t *testing.T) {
@@ -40,8 +43,8 @@ func TestParseArgs(t *testing.T) {
 }
 
 func TestRunScriptOutput(t *testing.T) {
-	gifData := makeTestGIF()
-	withTransport(t, &fakeTransport{gifData: gifData}, func() {
+	gifData := testutil.MakeTestGIF()
+	testutil.WithTransport(t, &testutil.FakeTransport{GIFData: gifData}, func() {
 		oldStdout := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
@@ -49,7 +52,7 @@ func TestRunScriptOutput(t *testing.T) {
 			os.Stdout = oldStdout
 		})
 
-		err := runScript(cliOptions{Number: true, Limit: 1, Source: "tenor"}, "cats")
+		err := runScript(model.Options{Number: true, Limit: 1, Source: "tenor"}, "cats")
 		_ = w.Close()
 		if err != nil {
 			t.Fatalf("runScript failed: %v", err)
@@ -61,7 +64,7 @@ func TestRunScriptOutput(t *testing.T) {
 
 		r2, w2, _ := os.Pipe()
 		os.Stdout = w2
-		err = runScript(cliOptions{JSON: true, Limit: 1, Source: "tenor"}, "cats")
+		err = runScript(model.Options{JSON: true, Limit: 1, Source: "tenor"}, "cats")
 		_ = w2.Close()
 		if err != nil {
 			t.Fatalf("runScript json failed: %v", err)
@@ -74,7 +77,7 @@ func TestRunScriptOutput(t *testing.T) {
 }
 
 func TestRunScriptError(t *testing.T) {
-	if err := runScript(cliOptions{Source: "nope"}, "cats"); err == nil {
+	if err := runScript(model.Options{Source: "nope"}, "cats"); err == nil {
 		t.Fatalf("expected error")
 	}
 }

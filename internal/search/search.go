@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/steipete/gifgrep/internal/model"
 )
 
 type tenorV1Response struct {
@@ -25,7 +27,7 @@ type mediaV1 struct {
 	Dims []int  `json:"dims"`
 }
 
-func search(query string, opts cliOptions) ([]gifResult, error) {
+func Search(query string, opts model.Options) ([]model.Result, error) {
 	switch opts.Source {
 	case "tenor":
 		return fetchTenorV1(query, opts)
@@ -34,7 +36,7 @@ func search(query string, opts cliOptions) ([]gifResult, error) {
 	}
 }
 
-func fetchTenorV1(query string, opts cliOptions) ([]gifResult, error) {
+func fetchTenorV1(query string, opts model.Options) ([]model.Result, error) {
 	apiKey := os.Getenv("TENOR_API_KEY")
 	if apiKey == "" {
 		apiKey = "LIVDSRZULELA"
@@ -77,7 +79,7 @@ func fetchTenorV1(query string, opts cliOptions) ([]gifResult, error) {
 		return nil, err
 	}
 
-	out := make([]gifResult, 0, len(parsed.Results))
+	out := make([]model.Result, 0, len(parsed.Results))
 	for _, r := range parsed.Results {
 		title := r.Title
 		if title == "" {
@@ -114,7 +116,7 @@ func fetchTenorV1(query string, opts cliOptions) ([]gifResult, error) {
 		if gifURL == "" {
 			continue
 		}
-		out = append(out, gifResult{
+		out = append(out, model.Result{
 			ID:         r.ID,
 			Title:      title,
 			URL:        gifURL,

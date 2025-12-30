@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestHelpers(t *testing.T) {
@@ -39,11 +38,6 @@ func TestHelpers(t *testing.T) {
 	_ = out.Flush()
 	if !strings.Contains(buf.String(), "\x1b[1;1H") {
 		t.Fatalf("expected clamped cursor move")
-	}
-	if clampDelay(5*time.Millisecond) != 10*time.Millisecond ||
-		clampDelay(2*time.Second) != time.Second ||
-		clampDelay(300*time.Millisecond) != 300*time.Millisecond {
-		t.Fatalf("clampDelay failed")
 	}
 	if maxInt(3, 2) != 3 || maxInt(1, 4) != 4 {
 		t.Fatalf("max failed")

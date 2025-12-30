@@ -5,15 +5,18 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/testutil"
 )
 
 func TestFetchTenorAndGIF(t *testing.T) {
-	gifData := makeTestGIF()
-	withTransport(t, &fakeTransport{gifData: gifData}, func() {
-		if _, err := search("cats", cliOptions{Source: "nope"}); err == nil {
+	gifData := testutil.MakeTestGIF()
+	testutil.WithTransport(t, &testutil.FakeTransport{GIFData: gifData}, func() {
+		if _, err := Search("cats", model.Options{Source: "nope"}); err == nil {
 			t.Fatalf("expected unknown source error")
 		}
-		out, err := fetchTenorV1("cats", cliOptions{Limit: 1})
+		out, err := fetchTenorV1("cats", model.Options{Limit: 1})
 		if err != nil {
 			t.Fatalf("fetchTenorV1 failed: %v", err)
 		}
@@ -22,16 +25,6 @@ func TestFetchTenorAndGIF(t *testing.T) {
 		}
 		if out[0].PreviewURL == "" || out[0].URL == "" {
 			t.Fatalf("missing URLs")
-		}
-		data, err := fetchGIF(out[0].PreviewURL)
-		if err != nil {
-			t.Fatalf("fetchGIF failed: %v", err)
-		}
-		if len(data) == 0 {
-			t.Fatalf("expected gif data")
-		}
-		if _, err := fetchGIF("https://example.test/missing.gif"); err == nil {
-			t.Fatalf("expected fetchGIF error")
 		}
 	})
 }
@@ -57,13 +50,13 @@ func (t *statusTenorTransport) RoundTrip(req *http.Request) (*http.Response, err
 }
 
 func TestFetchTenorErrors(t *testing.T) {
-	withTransport(t, &badTenorTransport{}, func() {
-		if _, err := fetchTenorV1("cats", cliOptions{Limit: 1}); err == nil {
+	testutil.WithTransport(t, &badTenorTransport{}, func() {
+		if _, err := fetchTenorV1("cats", model.Options{Limit: 1}); err == nil {
 			t.Fatalf("expected json error")
 		}
 	})
-	withTransport(t, &statusTenorTransport{}, func() {
-		if _, err := fetchTenorV1("cats", cliOptions{Limit: 1}); err == nil {
+	testutil.WithTransport(t, &statusTenorTransport{}, func() {
+		if _, err := fetchTenorV1("cats", model.Options{Limit: 1}); err == nil {
 			t.Fatalf("expected status error")
 		}
 	})
@@ -81,8 +74,8 @@ func (t *noMediaTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func TestFetchTenorMediaFallbacks(t *testing.T) {
-	withTransport(t, &noMediaTransport{}, func() {
-		results, err := fetchTenorV1("cats", cliOptions{Limit: 2})
+	testutil.WithTransport(t, &noMediaTransport{}, func() {
+		results, err := fetchTenorV1("cats", model.Options{Limit: 2})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/steipete/gifgrep/gifdecode"
+	"github.com/steipete/gifgrep/internal/model"
 )
 
 func TestRenderDeletesOldImage(t *testing.T) {
 	state := &appState{
 		mode:          modeBrowse,
-		results:       []gifResult{{Title: "A"}},
+		results:       []model.Result{{Title: "A"}},
 		activeImageID: 7,
 		currentAnim:   nil,
 	}
@@ -29,7 +30,7 @@ func TestRenderDeletesOldImage(t *testing.T) {
 func TestRenderWithPreviewRight(t *testing.T) {
 	state := &appState{
 		mode:    modeBrowse,
-		results: []gifResult{{Title: "A"}},
+		results: []model.Result{{Title: "A"}},
 		currentAnim: &gifAnimation{
 			ID:     1,
 			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
@@ -50,7 +51,7 @@ func TestRenderWithPreviewRight(t *testing.T) {
 func TestRenderWithPreviewBottom(t *testing.T) {
 	state := &appState{
 		mode:    modeBrowse,
-		results: []gifResult{{Title: "A"}},
+		results: []model.Result{{Title: "A"}},
 		currentAnim: &gifAnimation{
 			ID:     2,
 			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},

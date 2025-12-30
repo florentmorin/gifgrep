@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/steipete/gifgrep/internal/model"
 	"github.com/steipete/gifgrep/internal/tui"
 )
 

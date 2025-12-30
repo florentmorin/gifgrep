@@ -24,8 +24,8 @@ func TestKittySequences(t *testing.T) {
 	})
 	sendKittyAnimDelay(out, 7, 80)
 	sendKittyAnimStart(out, 7)
-	placeKittyImage(out, 7, 2, 3)
-	deleteKittyImage(out, 7)
+	PlaceImage(out, 7, 2, 3)
+	DeleteImage(out, 7)
 	_ = out.Flush()
 
 	s := buf.String()
@@ -37,12 +37,9 @@ func TestKittySequences(t *testing.T) {
 	}
 
 	buf.Reset()
-	sendKittyAnimation(out, &gifAnimation{
-		ID: 2,
-		Frames: []gifdecode.Frame{
-			{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond},
-			{PNG: []byte{4, 5, 6}, Delay: 90 * time.Millisecond},
-		},
+	SendAnimation(out, 2, []gifdecode.Frame{
+		{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond},
+		{PNG: []byte{4, 5, 6}, Delay: 90 * time.Millisecond},
 	}, 5, 4)
 	_ = out.Flush()
 	if !strings.Contains(buf.String(), "a=f") {
@@ -51,8 +48,8 @@ func TestKittySequences(t *testing.T) {
 
 	buf.Reset()
 	sendKittyAnimDelay(out, 7, 0)
-	placeKittyImage(out, 0, 2, 3)
-	deleteKittyImage(out, 0)
+	PlaceImage(out, 0, 2, 3)
+	DeleteImage(out, 0)
 	_ = out.Flush()
 	if buf.Len() != 0 {
 		t.Fatalf("expected no output for no-op calls")

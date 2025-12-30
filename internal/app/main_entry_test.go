@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/steipete/gifgrep/internal/tui"
 	"golang.org/x/term"
 )
 
@@ -42,88 +43,56 @@ func TestRunArgs(t *testing.T) {
 	})
 
 	t.Run("tui", func(t *testing.T) {
-		origEnvFn := defaultEnvFn
-		defer func() { defaultEnvFn = origEnvFn }()
-		defaultEnvFn = func() tuiEnv {
-			return tuiEnv{
-				in:         bytes.NewReader([]byte("q")),
-				out:        io.Discard,
-				fd:         1,
-				isTerminal: func(int) bool { return true },
-				makeRaw:    func(int) (*term.State, error) { return &term.State{}, nil },
-				restore:    func(int, *term.State) error { return nil },
-				getSize:    func(int) (int, int, error) { return 80, 24, nil },
-				signalCh:   make(chan os.Signal),
+		t.Cleanup(func() { tui.SetDefaultEnvForTest(nil) })
+		tui.SetDefaultEnvForTest(func() tui.Env {
+			return tui.Env{
+				In:         bytes.NewReader([]byte("q")),
+				Out:        io.Discard,
+				FD:         1,
+				IsTerminal: func(int) bool { return true },
+				MakeRaw:    func(int) (*term.State, error) { return &term.State{}, nil },
+				Restore:    func(int, *term.State) error { return nil },
+				GetSize:    func(int) (int, int, error) { return 80, 24, nil },
+				SignalCh:   make(chan os.Signal),
 			}
-		}
+		})
 		if code := Run([]string{"--tui"}); code != 0 {
 			t.Fatalf("expected exit 0")
 		}
 	})
 }
 
-func TestDefaultEnv(t *testing.T) {
-	env := defaultTUIEnv()
-	if env.in == nil || env.out == nil || env.signalCh == nil {
-		t.Fatalf("expected env to be initialized")
-	}
-	if env.isTerminal == nil || env.makeRaw == nil || env.restore == nil || env.getSize == nil {
-		t.Fatalf("expected env functions")
-	}
-}
-
-func TestRunTUIModes(t *testing.T) {
-	origEnvFn := defaultEnvFn
-	defer func() { defaultEnvFn = origEnvFn }()
+func TestRunTUIExitCodes(t *testing.T) {
+	t.Cleanup(func() { tui.SetDefaultEnvForTest(nil) })
 
 	t.Run("not terminal", func(t *testing.T) {
-		defaultEnvFn = func() tuiEnv {
-			return tuiEnv{
-				in:  bytes.NewReader(nil),
-				out: io.Discard,
-				fd:  1,
-				isTerminal: func(int) bool {
-					return false
-				},
+		tui.SetDefaultEnvForTest(func() tui.Env {
+			return tui.Env{
+				In:         bytes.NewReader(nil),
+				Out:        io.Discard,
+				FD:         1,
+				IsTerminal: func(int) bool { return false },
 			}
-		}
+		})
 		if code := Run([]string{"--tui"}); code != 1 {
 			t.Fatalf("expected exit 1")
 		}
 	})
 
-	t.Run("ok", func(t *testing.T) {
-		defaultEnvFn = func() tuiEnv {
-			return tuiEnv{
-				in:         bytes.NewReader([]byte("q")),
-				out:        io.Discard,
-				fd:         1,
-				isTerminal: func(int) bool { return true },
-				makeRaw: func(int) (*term.State, error) {
-					return &term.State{}, nil
+	t.Run("makeRaw fails", func(t *testing.T) {
+		tui.SetDefaultEnvForTest(func() tui.Env {
+			return tui.Env{
+				In:         bytes.NewReader(nil),
+				Out:        io.Discard,
+				FD:         1,
+				IsTerminal: func(int) bool { return true },
+				MakeRaw: func(int) (*term.State, error) {
+					return nil, errors.New("boom")
 				},
-				restore:  func(int, *term.State) error { return nil },
-				getSize:  func(int) (int, int, error) { return 80, 24, nil },
-				signalCh: make(chan os.Signal),
 			}
-		}
-		if err := runTUI(cliOptions{}, ""); err != nil {
-			t.Fatalf("expected no error")
+		})
+		if code := Run([]string{"--tui"}); code != 1 {
+			t.Fatalf("expected exit 1")
 		}
 	})
-}
-
-func TestRunTUIWithFailures(t *testing.T) {
-	env := tuiEnv{
-		in:         bytes.NewReader(nil),
-		out:        io.Discard,
-		fd:         1,
-		isTerminal: func(int) bool { return true },
-		makeRaw: func(int) (*term.State, error) {
-			return nil, errors.New("boom")
-		},
-	}
-	if err := runTUIWith(env, cliOptions{}, ""); err == nil {
-		t.Fatalf("expected error")
-	}
 }

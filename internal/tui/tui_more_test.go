@@ -9,58 +9,60 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/testutil"
 	"golang.org/x/term"
 )
 
 func TestRunTUIWithDefaultsNotTerminal(t *testing.T) {
-	if err := runTUIWith(tuiEnv{}, cliOptions{}, ""); !errors.Is(err, errNotTerminal) {
+	if err := runWith(Env{}, model.Options{}, ""); !errors.Is(err, ErrNotTerminal) {
 		t.Fatalf("expected errNotTerminal")
 	}
 }
 
 func TestRunTUIWithNoRestore(t *testing.T) {
-	env := tuiEnv{
-		in:         bytes.NewReader([]byte("q")),
-		out:        io.Discard,
-		fd:         1,
-		isTerminal: func(int) bool { return true },
-		makeRaw:    func(int) (*term.State, error) { return nil, nil },
-		getSize:    func(int) (int, int, error) { return 80, 24, nil },
-		signalCh:   make(chan os.Signal),
+	env := Env{
+		In:         bytes.NewReader([]byte("q")),
+		Out:        io.Discard,
+		FD:         1,
+		IsTerminal: func(int) bool { return true },
+		MakeRaw:    func(int) (*term.State, error) { return nil, nil },
+		GetSize:    func(int) (int, int, error) { return 80, 24, nil },
+		SignalCh:   make(chan os.Signal),
 	}
-	if err := runTUIWith(env, cliOptions{}, ""); err != nil {
+	if err := runWith(env, model.Options{}, ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestRunTUIWithSearchError(t *testing.T) {
-	env := tuiEnv{
-		in:         bytes.NewReader([]byte("q")),
-		out:        io.Discard,
-		fd:         1,
-		isTerminal: func(int) bool { return true },
-		makeRaw:    func(int) (*term.State, error) { return &term.State{}, nil },
-		restore:    func(int, *term.State) error { return nil },
-		getSize:    func(int) (int, int, error) { return 80, 24, nil },
-		signalCh:   make(chan os.Signal),
+	env := Env{
+		In:         bytes.NewReader([]byte("q")),
+		Out:        io.Discard,
+		FD:         1,
+		IsTerminal: func(int) bool { return true },
+		MakeRaw:    func(int) (*term.State, error) { return &term.State{}, nil },
+		Restore:    func(int, *term.State) error { return nil },
+		GetSize:    func(int) (int, int, error) { return 80, 24, nil },
+		SignalCh:   make(chan os.Signal),
 	}
-	if err := runTUIWith(env, cliOptions{Source: "nope"}, "cats"); err != nil {
+	if err := runWith(env, model.Options{Source: "nope"}, "cats"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestRunTUIWithSizeError(t *testing.T) {
-	env := tuiEnv{
-		in:         bytes.NewReader([]byte("q")),
-		out:        io.Discard,
-		fd:         1,
-		isTerminal: func(int) bool { return true },
-		makeRaw:    func(int) (*term.State, error) { return &term.State{}, nil },
-		restore:    func(int, *term.State) error { return nil },
-		getSize:    func(int) (int, int, error) { return 0, 0, errors.New("bad") },
-		signalCh:   make(chan os.Signal),
+	env := Env{
+		In:         bytes.NewReader([]byte("q")),
+		Out:        io.Discard,
+		FD:         1,
+		IsTerminal: func(int) bool { return true },
+		MakeRaw:    func(int) (*term.State, error) { return &term.State{}, nil },
+		Restore:    func(int, *term.State) error { return nil },
+		GetSize:    func(int) (int, int, error) { return 0, 0, errors.New("bad") },
+		SignalCh:   make(chan os.Signal),
 	}
-	if err := runTUIWith(env, cliOptions{}, ""); err != nil {
+	if err := runWith(env, model.Options{}, ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -77,20 +79,20 @@ func (t *emptyTenorTransport) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 func TestRunTUIWithEmptyResultsAndSignal(t *testing.T) {
-	withTransport(t, &emptyTenorTransport{}, func() {
+	testutil.WithTransport(t, &emptyTenorTransport{}, func() {
 		sigs := make(chan os.Signal, 1)
 		sigs <- os.Interrupt
-		env := tuiEnv{
-			in:         bytes.NewReader([]byte("q")),
-			out:        io.Discard,
-			fd:         1,
-			isTerminal: func(int) bool { return true },
-			makeRaw:    func(int) (*term.State, error) { return &term.State{}, nil },
-			restore:    func(int, *term.State) error { return nil },
-			getSize:    func(int) (int, int, error) { return 80, 24, nil },
-			signalCh:   sigs,
-		}
-		if err := runTUIWith(env, cliOptions{Source: "tenor"}, "cats"); err != nil {
+			env := Env{
+				In:         bytes.NewReader([]byte("q")),
+				Out:        io.Discard,
+				FD:         1,
+				IsTerminal: func(int) bool { return true },
+				MakeRaw:    func(int) (*term.State, error) { return &term.State{}, nil },
+				Restore:    func(int, *term.State) error { return nil },
+				GetSize:    func(int) (int, int, error) { return 80, 24, nil },
+				SignalCh:   sigs,
+			}
+		if err := runWith(env, model.Options{Source: "tenor"}, "cats"); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})

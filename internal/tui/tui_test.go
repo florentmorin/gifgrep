@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/steipete/gifgrep/gifdecode"
+	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/testutil"
 )
 
 func TestPreviewSize(t *testing.T) {
@@ -45,13 +47,13 @@ func TestEnsureVisible(t *testing.T) {
 }
 
 func TestHandleInputAndLoad(t *testing.T) {
-	gifData := makeTestGIF()
-	withTransport(t, &fakeTransport{gifData: gifData}, func() {
+	gifData := testutil.MakeTestGIF()
+	testutil.WithTransport(t, &testutil.FakeTransport{GIFData: gifData}, func() {
 		state := &appState{
 			query: "cats",
 			mode:  modeQuery,
 			cache: map[string]*gifdecode.Frames{},
-			opts:  cliOptions{Limit: 1, Source: "tenor"},
+			opts:  model.Options{Limit: 1, Source: "tenor"},
 		}
 		var buf bytes.Buffer
 		out := bufio.NewWriter(&buf)
@@ -68,7 +70,7 @@ func TestHandleInputAndLoad(t *testing.T) {
 			t.Fatalf("expected current animation")
 		}
 
-		state.results = append(state.results, gifResult{Title: "Second", PreviewURL: state.results[0].PreviewURL})
+		state.results = append(state.results, model.Result{Title: "Second", PreviewURL: state.results[0].PreviewURL})
 		state.selected = 0
 		handleInput(state, inputEvent{kind: keyDown}, out)
 		if state.selected != 1 {
@@ -92,7 +94,7 @@ func TestHandleInputAndLoad(t *testing.T) {
 			t.Fatalf("expected query mode")
 		}
 
-		state.results = []gifResult{{Title: "A"}}
+		state.results = []model.Result{{Title: "A"}}
 		handleInput(state, inputEvent{kind: keyEsc}, out)
 		if state.mode != modeBrowse {
 			t.Fatalf("expected browse mode on esc")
@@ -117,7 +119,7 @@ func TestHandleInputAndLoad(t *testing.T) {
 		}
 
 		state.mode = modeQuery
-		state.results = []gifResult{{Title: "A"}}
+		state.results = []model.Result{{Title: "A"}}
 		handleInput(state, inputEvent{kind: keyEsc}, out)
 		if state.mode != modeBrowse {
 			t.Fatalf("expected browse mode on esc with results")
@@ -183,7 +185,7 @@ func TestRenderAndLines(t *testing.T) {
 	state := &appState{
 		query:   "cats",
 		mode:    modeBrowse,
-		results: []gifResult{{Title: "A cat"}, {Title: "B cat"}},
+		results: []model.Result{{Title: "A cat"}, {Title: "B cat"}},
 		status:  "10 results",
 	}
 	var buf bytes.Buffer
