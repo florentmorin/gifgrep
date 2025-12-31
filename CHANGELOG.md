@@ -1,46 +1,38 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 - 2025-12-31
 
-### Added
-- **Subcommand CLI**: `search`, `tui`, `still`, `sheet` (bare `gifgrep <query...>` remains an alias for `search`).
-- **Reveal output**: `--reveal` (and TUI key `f`) reveals the last output file in the file manager.
-- **Output controls**: `--quiet` and `--verbose` (with richer structured help).
-- **Help output polish**: colorized banner/sections, plus `--no-color` convenience flag.
+First public release of gifgrep — GIF search for terminals: scriptable CLI output plus a TUI with inline previews.
 
-### Changed
-- **Stills workflow**: replaced `--gif/--still/--stills` flags with `still` and `sheet` subcommands (`--at`, `--frames`, `--cols`, `--padding`).
+### Highlights
+- Fast CLI search (`gifgrep <query...>` / `gifgrep search`) with Tenor + Giphy sources.
+- Output formats for humans and pipes: plain (TTY default), URL-only, TSV, Markdown, and comment style (plus JSON).
+- Inline previews:
+  - TUI browser with inline preview + animation (Kitty graphics, with Ghostty software fallback).
+  - Optional inline thumbnails in search output (`--thumbs`) that render into scrollback.
+- Stills: extract a single PNG frame or a sampled “contact sheet” PNG from any GIF (file or URL).
+- Convenience: download/reveal in file manager (`d`/`f` in TUI, `--reveal` globally), plus rich color help/output.
 
-### Removed
-- **Local search filters**: dropped `-i`, `-E`, `--mood`, and `-v` (and the related filtering pipeline).
+### Feature overview
+- **Global flags**
+  - `--color/--no-color` for rich TTY output.
+  - `--quiet/--verbose` for stderr logging.
+  - `--reveal` to reveal output files in the OS file manager.
 
-### Fixed
-- **TUI hints**: improved key-hint coloring and layout consistency.
+- **CLI search**
+  - `gifgrep search --source auto|tenor|giphy --max N <query...>` (bare `gifgrep <query...>` is an alias).
+  - `--format auto|plain|tsv|md|url|comment|json` and `--json` for structured output.
+  - `--thumbs auto|always|never` for Kitty thumbnails in plain output (TTY-only).
 
-### Developer Experience
-- **CLI parsing**: migrated to `kong`.
+- **Interactive TUI**
+  - `gifgrep tui [query...]` with arrow-key navigation, quick search editing (`/`), and key hints.
+  - Aspect-ratio-aware inline preview; animated playback via Kitty image protocol or software redraw.
+  - `d` downloads the current selection to `~/Downloads`; `f` reveals the last download.
 
-## 0.1.0 - 2025-12-30
+- **Stills & sheets**
+  - `gifgrep still <gif> --at <time> -o <file|->` (single frame PNG).
+  - `gifgrep sheet <gif> --frames N --cols N --padding N -o <file|->` (sampled PNG grid).
 
-### Added
-- **CLI search mode**: `gifgrep [flags] <query...>` prints `<title>\t<url>` (or `--json`), with numbered output (`-n`) and `--color` (`auto|always|never`).
-- **Providers**: `--source` (`auto`, `tenor`, `giphy`) with `TENOR_API_KEY` and `GIPHY_API_KEY` support (`auto` prefers Giphy when a key is set).
-- **Filters**: `-i` ignore-case, `-E` regex over title/tags, `--mood`, `-v` invert vibe, and `-m` max-results.
-- **Flags after query**: supports `gifgrep cats --json` (not just `gifgrep --json cats`).
-- **Interactive TUI**: `--tui` raw-mode terminal UI with query/browse states, arrow-key navigation, status line, and key hints (plus `d` to download the current selection).
-- **Kitty graphics preview**: inline GIF rendering with automatic cleanup; aspect-ratio-aware sizing with `GIFGREP_CELL_ASPECT`.
-- **Animation handling**: Kitty animation stream when supported; software re-render fallback (Ghostty auto-detect or `GIFGREP_SOFTWARE_ANIM=1`).
-- **Responsive layout**: list + preview side-by-side on wide terminals, stacked preview on narrow terminals.
-- **Preview caching**: in-memory cache keyed by preview URL for fast browsing.
-- **Stills extraction**: `--gif` (file/URL) with `--still <time>` for a single frame, or `--stills <N>` for a contact sheet; output via `--out` (file or stdout).
-- **Giphy attribution**: inline logo display when Giphy is the active source.
-
-### Fixed
-- **Frame offsets**: corrected frame-offset math for still/sheet extraction (with regression coverage).
-
-### Developer Experience
-- **Formatter + lint**: gofumpt and golangci-lint, with Makefile/justfile targets.
-- **Benchmarks**: synthetic and fixture-backed decode benchmarks.
-- **Fixtures**: small, licensed GIF corpus with documented sources (`docs/gif-sources.md`).
-- **Visual checks**: Ghostty-web screenshot harness (`pnpm snap`).
-- **Docs site**: GitHub Pages content in `docs/`.
+- **Providers**
+  - Tenor search (defaults to the public demo key; `TENOR_API_KEY` optional).
+  - Giphy search (`GIPHY_API_KEY` required); `--source auto` prefers Giphy when keyed.
