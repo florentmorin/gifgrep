@@ -412,7 +412,7 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 		// so old list rows don't show through. For Kitty, it's cheap to clear every render;
 		// for iTerm images (inline in the text grid), clearing would erase the image.
 		if state.inline == termcaps.InlineKitty || !state.lastShowRight {
-			clearPreviewArea(out, layout)
+			clearPreviewAreaFn(out, layout)
 		}
 	}
 
@@ -527,6 +527,8 @@ func clearPreviewArea(out *bufio.Writer, layout layout) {
 		writeLineAt(out, layout.contentTop+i, 1, "", layout.clearWidth)
 	}
 }
+
+var clearPreviewAreaFn = clearPreviewArea
 
 func drawList(out *bufio.Writer, state *appState, layout layout) {
 	for i := 0; i < layout.listHeight; i++ {

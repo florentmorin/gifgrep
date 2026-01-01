@@ -30,6 +30,74 @@ func TestRenderDeletesOldImage(t *testing.T) {
 	}
 }
 
+func TestRenderDoesNotClearItermPreviewEveryRender(t *testing.T) {
+	prev := clearPreviewAreaFn
+	t.Cleanup(func() { clearPreviewAreaFn = prev })
+
+	var clears int
+	clearPreviewAreaFn = func(_ *bufio.Writer, _ layout) { clears++ }
+
+	state := &appState{
+		mode:   modeBrowse,
+		inline: termcaps.InlineIterm,
+		results: []model.Result{
+			{Title: "A"},
+		},
+		currentAnim: &gifAnimation{
+			ID:     1,
+			RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
+			Width:  1,
+			Height: 1,
+		},
+		previewNeedsSend: true,
+		opts:             model.Options{Source: "tenor"},
+	}
+
+	var buf bytes.Buffer
+	out := bufio.NewWriter(&buf)
+
+	render(state, out, 20, 100)
+	render(state, out, 20, 100)
+
+	if clears != 1 {
+		t.Fatalf("expected 1 clear for iterm split preview, got %d", clears)
+	}
+}
+
+func TestRenderKeepsClearingKittyPreview(t *testing.T) {
+	prev := clearPreviewAreaFn
+	t.Cleanup(func() { clearPreviewAreaFn = prev })
+
+	var clears int
+	clearPreviewAreaFn = func(_ *bufio.Writer, _ layout) { clears++ }
+
+	state := &appState{
+		mode:   modeBrowse,
+		inline: termcaps.InlineKitty,
+		results: []model.Result{
+			{Title: "A"},
+		},
+		currentAnim: &gifAnimation{
+			ID:     1,
+			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
+			Width:  200,
+			Height: 100,
+		},
+		previewNeedsSend: true,
+		opts:             model.Options{Source: "tenor"},
+	}
+
+	var buf bytes.Buffer
+	out := bufio.NewWriter(&buf)
+
+	render(state, out, 20, 100)
+	render(state, out, 20, 100)
+
+	if clears != 2 {
+		t.Fatalf("expected 2 clears for kitty split preview, got %d", clears)
+	}
+}
+
 func TestRenderWithPreviewRight(t *testing.T) {
 	state := &appState{
 		mode:    modeBrowse,
