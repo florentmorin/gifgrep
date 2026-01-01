@@ -117,6 +117,7 @@ See `docs/gif-sources.md`.
 ```bash
 make test
 make gifgrep GIFGREP_ARGS="--help"
+make gifgrep -- --version
 ```
 
 Ghostty web snapshot:

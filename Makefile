@@ -49,4 +49,4 @@ $(GIFGREP_BIN): $(GIFGREP_DEPS)
 	go build -o $(GIFGREP_BIN) ./cmd/gifgrep
 
 gifgrep run start: $(GIFGREP_BIN)
-	$(GIFGREP_BIN) $(GIFGREP_ARGS)
+	$(GIFGREP_BIN) $(filter-out --,$(GIFGREP_ARGS))
