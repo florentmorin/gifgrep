@@ -429,6 +429,9 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 	state.lastShowRight = layout.showRight
 
 	drawList(out, state, layout)
+	if state.inline == termcaps.InlineIterm && layout.showRight {
+		clearItermGapColumn(out, layout)
+	}
 	drawPreviewIfNeeded(out, state, layout)
 	drawStatus(out, state, layout)
 	drawSearch(out, state, layout)
@@ -480,7 +483,15 @@ func buildLayout(state *appState, rows, cols int) layout {
 	layout.showRight = showRight
 
 	if showRight {
-		layout.previewCols, layout.previewRows = fitPreviewSize(maxPreviewCols, layout.contentHeight, state.currentAnim)
+		// iTerm inline images are part of the text grid. Keep the split boundary stable
+		// (don't resize the preview box per GIF aspect ratio), otherwise old text can
+		// "leak" when the list column shifts.
+		if state.inline == termcaps.InlineIterm {
+			layout.previewCols = maxPreviewCols
+			layout.previewRows = layout.contentHeight
+		} else {
+			layout.previewCols, layout.previewRows = fitPreviewSize(maxPreviewCols, layout.contentHeight, state.currentAnim)
+		}
 	} else {
 		availRows := layout.contentHeight / 2
 		if availRows < 6 {
@@ -658,9 +669,9 @@ func drawHints(out *bufio.Writer, state *appState, layout layout) {
 		return styleIf(true, key, "\x1b[1m", "\x1b[36m") + " " + styleIf(true, label, "\x1b[90m")
 	}
 	hints := strings.Join([]string{
-		formatHint("⏎", "Search"),
+		formatHint("Enter", "Search"),
 		formatHint("/", "Edit"),
-		formatHint("↑↓", "Select"),
+		formatHint("Up/Down", "Select"),
 		formatHint("d", "Download"),
 		formatHint("f", "Reveal"),
 		formatHint("q", "Quit"),
@@ -742,8 +753,14 @@ func drawPreview(state *appState, out *bufio.Writer, cols, rows int, row, col in
 		if !state.previewNeedsSend && !state.previewDirty && state.lastPreview.cols == cols && state.lastPreview.rows == rows {
 			return
 		}
-		if state.itermLast.cols > 0 && state.itermLast.rows > 0 {
+		hasPrev := state.itermLast.cols > 0 && state.itermLast.rows > 0
+		if hasPrev {
 			clearItermRectFn(out, state.itermLast.row, state.itermLast.col, state.itermLast.cols, state.itermLast.rows)
+			// If the new box is larger or moved, also clear the new rect once to avoid
+			// old list text "bleeding" into the preview area (iTerm images are in-grid).
+			if row != state.itermLast.row || col != state.itermLast.col || cols > state.itermLast.cols || rows > state.itermLast.rows {
+				clearItermRectFn(out, row, col, cols, rows)
+			}
 		}
 		saveCursor(out)
 		moveCursor(out, row, col)
@@ -935,4 +952,20 @@ func flashHeader(state *appState, msg string) {
 	}
 	state.headerFlash = msg
 	state.headerFlashAt = nowFn().Add(3 * time.Second)
+}
+
+func clearItermGapColumn(out *bufio.Writer, layout layout) {
+	if out == nil || !layout.showRight || layout.previewCols <= 0 || layout.contentHeight <= 0 {
+		return
+	}
+	col := layout.previewCols + 1
+	if col < 1 || col > layout.cols {
+		return
+	}
+	saveCursor(out)
+	for row := layout.contentTop; row <= layout.contentBottom; row++ {
+		moveCursor(out, row, col)
+		_, _ = fmt.Fprint(out, " ")
+	}
+	restoreCursor(out)
 }

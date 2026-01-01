@@ -10,9 +10,10 @@
 - TUI: avoid emitting Kitty graphics sequences on unsupported terminals (no more base64 spew).
 - TUI: when inline images aren’t supported, exit with a helpful “supported terminals / protocol” message.
 - Inline detection: use Kitty graphics query (a=q) when available to avoid false positives.
-- TUI: fix hint row centering for wide glyphs (emoji/symbols).
+- TUI: make hint keys ASCII to avoid double-width glyph centering drift.
 - iTerm2: keep animated previews running after UI redraws (don’t clear preview every render).
 - iTerm2: clear previous preview when re-sending (avoid “stacked” images after reveal/resize).
+- iTerm2: stabilize split preview width + clear the gap column (fix repaint artifacts/“text bleed”).
 - TUI: show download/reveal transient status in the header (no “sticky” status row spam).
 
 ### Dev

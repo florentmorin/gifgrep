@@ -130,6 +130,61 @@ func TestDrawPreviewItermClearsOldRectOnResend(t *testing.T) {
 	}
 }
 
+func TestDrawPreviewItermClearsNewRectOnExpand(t *testing.T) {
+	prev := clearItermRectFn
+	t.Cleanup(func() { clearItermRectFn = prev })
+
+	var clears int
+	clearItermRectFn = func(_ *bufio.Writer, _, _, _, _ int) { clears++ }
+
+	state := &appState{
+		inline: termcaps.InlineIterm,
+		currentAnim: &gifAnimation{
+			ID:     1,
+			RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
+			Width:  1,
+			Height: 1,
+		},
+		previewNeedsSend: true,
+	}
+	var buf bytes.Buffer
+	out := bufio.NewWriter(&buf)
+
+	drawPreview(state, out, 10, 4, 2, 2) // first send (no clear)
+	state.previewDirty = true
+	drawPreview(state, out, 20, 8, 2, 2) // expand -> should clear old + new rect
+	if clears != 2 {
+		t.Fatalf("expected 2 clears on expand resend, got %d", clears)
+	}
+}
+
+func TestBuildLayoutItermKeepsStableSplitBoundary(t *testing.T) {
+	state := &appState{
+		inline: termcaps.InlineIterm,
+		currentAnim: &gifAnimation{
+			ID:     1,
+			RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
+			Width:  200,
+			Height: 100,
+		},
+	}
+	l1 := buildLayout(state, 20, 120)
+	if !l1.showRight {
+		t.Fatalf("expected showRight")
+	}
+
+	state.currentAnim = &gifAnimation{
+		ID:     2,
+		RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
+		Width:  80,
+		Height: 240,
+	}
+	l2 := buildLayout(state, 20, 120)
+	if l2.listCol != l1.listCol {
+		t.Fatalf("expected stable listCol, got %d then %d", l1.listCol, l2.listCol)
+	}
+}
+
 func TestRenderWithPreviewRight(t *testing.T) {
 	state := &appState{
 		mode:    modeBrowse,
