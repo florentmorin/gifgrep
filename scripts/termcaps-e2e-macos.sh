@@ -23,18 +23,25 @@ wait_for_file() {
   done
 }
 
-app_installed() {
-  /usr/bin/osascript <<'APPLESCRIPT' "$1" 2>/dev/null | grep -q '^yes$'
-on run argv
-  set appName to item 1 of argv
-  try
-    id of application appName
-    return "yes"
-  on error
-    return "no"
-  end try
-end run
-APPLESCRIPT
+app_bundle_installed() {
+  local bundle_id="$1"
+  shift
+  local paths=("$@")
+
+  for p in "${paths[@]}"; do
+    if [[ -d "$p" ]]; then
+      return 0
+    fi
+  done
+
+  if command -v mdfind >/dev/null 2>&1; then
+    local found
+    found="$(mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" | head -n 1 || true)"
+    [[ -n "$found" ]]
+    return
+  fi
+
+  return 1
 }
 
 read_status_or_fail() {
@@ -108,7 +115,9 @@ else
 fi
 
 # Apple Terminal (expect none)
-if app_installed "Terminal"; then
+if app_bundle_installed "com.apple.Terminal" \
+  "/System/Applications/Utilities/Terminal.app" \
+  "/Applications/Utilities/Terminal.app"; then
   term_out="$tmp_dir/terminal.json"
   term_status="$tmp_dir/terminal.status"
   if run_terminal_applescript "Terminal" "none" "$term_out" "$term_status"; then
@@ -122,7 +131,11 @@ else
 fi
 
 # iTerm2 (expect iterm) — skip if not installed
-if app_installed "iTerm"; then
+if app_bundle_installed "com.googlecode.iterm2" \
+  "/Applications/iTerm.app" \
+  "/Applications/iTerm2.app" \
+  "$HOME/Applications/iTerm.app" \
+  "$HOME/Applications/iTerm2.app"; then
   iterm_out="$tmp_dir/iterm.json"
   iterm_status="$tmp_dir/iterm.status"
   if run_terminal_applescript "iTerm" "iterm" "$iterm_out" "$iterm_status"; then
