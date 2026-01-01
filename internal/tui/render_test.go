@@ -119,14 +119,14 @@ func TestDrawPreviewItermClearsOldRectOnResend(t *testing.T) {
 	out := bufio.NewWriter(&buf)
 
 	drawPreview(state, out, 20, 8, 2, 2) // first send (no clear)
-	if clears != 0 {
-		t.Fatalf("expected 0 clears on first send, got %d", clears)
+	if clears != 1 {
+		t.Fatalf("expected 1 clear on first send, got %d", clears)
 	}
 
 	state.previewDirty = true
 	drawPreview(state, out, 20, 8, 2, 2) // resend -> should clear previous rect
-	if clears != 1 {
-		t.Fatalf("expected 1 clear on resend, got %d", clears)
+	if clears != 2 {
+		t.Fatalf("expected 2 clears after resend, got %d", clears)
 	}
 }
 
@@ -153,17 +153,17 @@ func TestDrawPreviewItermClearsNewRectOnExpand(t *testing.T) {
 	drawPreview(state, out, 10, 4, 2, 2) // first send (no clear)
 	state.previewDirty = true
 	drawPreview(state, out, 20, 8, 2, 2) // expand -> should clear old + new rect
-	if clears != 2 {
-		t.Fatalf("expected 2 clears on expand resend, got %d", clears)
+	if clears != 3 {
+		t.Fatalf("expected 3 clears on expand resend, got %d", clears)
 	}
 }
 
-func TestRenderItermClearsContentOnResend(t *testing.T) {
-	prev := clearItermContentAreaFn
-	t.Cleanup(func() { clearItermContentAreaFn = prev })
+func TestRenderItermClearsOutsidePreviewRows(t *testing.T) {
+	prev := clearItermOutsidePreviewFn
+	t.Cleanup(func() { clearItermOutsidePreviewFn = prev })
 
 	var clears int
-	clearItermContentAreaFn = func(_ *bufio.Writer, _ layout) { clears++ }
+	clearItermOutsidePreviewFn = func(_ *bufio.Writer, _ layout) { clears++ }
 
 	state := &appState{
 		mode:   modeBrowse,
@@ -171,12 +171,7 @@ func TestRenderItermClearsContentOnResend(t *testing.T) {
 		results: []model.Result{
 			{Title: "A"},
 		},
-		currentAnim: &gifAnimation{
-			ID:     1,
-			RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
-			Width:  200,
-			Height: 100,
-		},
+		currentAnim:      &gifAnimation{ID: 1, RawGIF: []byte("GIF89a\x01\x00\x01\x00"), Width: 400, Height: 100},
 		previewNeedsSend: true,
 		opts:             model.Options{Source: "tenor"},
 	}
@@ -185,27 +180,9 @@ func TestRenderItermClearsContentOnResend(t *testing.T) {
 	out := bufio.NewWriter(&buf)
 
 	render(state, out, 20, 120)
-	if clears != 1 {
-		t.Fatalf("expected 1 content clear on initial send, got %d", clears)
-	}
-
-	// No resend: keep animation running (no extra clears).
-	render(state, out, 20, 120)
-	if clears != 1 {
-		t.Fatalf("expected no extra clears without resend, got %d", clears)
-	}
-
-	// Selection change -> resend -> clear again.
-	state.currentAnim = &gifAnimation{
-		ID:     2,
-		RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
-		Width:  80,
-		Height: 240,
-	}
-	state.previewNeedsSend = true
 	render(state, out, 20, 120)
 	if clears != 2 {
-		t.Fatalf("expected 2 clears after resend, got %d", clears)
+		t.Fatalf("expected 2 outside-preview clears, got %d", clears)
 	}
 }
 

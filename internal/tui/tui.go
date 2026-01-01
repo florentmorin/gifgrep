@@ -429,12 +429,7 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 	state.lastShowRight = layout.showRight
 
 	if state.inline == termcaps.InlineIterm && layout.showRight {
-		// iTerm inline images are part of the text grid. If the preview is about to be
-		// re-sent (selection change/resize), clear the full content area once so column
-		// shifts don't leave stale text behind, but keep animation running otherwise.
-		if shouldClearItermContent(state, layout) {
-			clearItermContentAreaFn(out, layout)
-		}
+		clearItermOutsidePreviewFn(out, layout)
 	}
 
 	drawList(out, state, layout)
@@ -754,14 +749,23 @@ func drawPreview(state *appState, out *bufio.Writer, cols, rows int, row, col in
 		if !state.previewNeedsSend && !state.previewDirty && state.lastPreview.cols == cols && state.lastPreview.rows == rows {
 			return
 		}
+
 		hasPrev := state.itermLast.cols > 0 && state.itermLast.rows > 0
-		if hasPrev {
-			clearItermRectFn(out, state.itermLast.row, state.itermLast.col, state.itermLast.cols, state.itermLast.rows)
-			// If the new box is larger or moved, also clear the new rect once to avoid
-			// old list text "bleeding" into the preview area (iTerm images are in-grid).
-			if row != state.itermLast.row || col != state.itermLast.col || cols > state.itermLast.cols || rows > state.itermLast.rows {
-				clearItermRectFn(out, row, col, cols, rows)
+		sameRect := hasPrev &&
+			row == state.itermLast.row &&
+			col == state.itermLast.col &&
+			cols == state.itermLast.cols &&
+			rows == state.itermLast.rows
+
+		// iTerm inline images are in the text grid. Always clear the target rect before
+		// sending so letterboxing doesn't show stale text.
+		if sameRect {
+			clearItermRectFn(out, row, col, cols, rows)
+		} else {
+			if hasPrev {
+				clearItermRectFn(out, state.itermLast.row, state.itermLast.col, state.itermLast.cols, state.itermLast.rows)
 			}
+			clearItermRectFn(out, row, col, cols, rows)
 		}
 		saveCursor(out)
 		moveCursor(out, row, col)
@@ -971,28 +975,25 @@ func clearItermGapColumn(out *bufio.Writer, layout layout) {
 	restoreCursor(out)
 }
 
-func shouldClearItermContent(state *appState, layout layout) bool {
-	if state == nil || !layout.showRight || state.inline != termcaps.InlineIterm {
-		return false
-	}
-	if state.previewNeedsSend || state.previewDirty {
-		return true
-	}
-	if state.lastPreview.cols != layout.previewCols || state.lastPreview.rows != layout.previewRows {
-		return true
-	}
-	return false
-}
-
-func clearItermContentArea(out *bufio.Writer, layout layout) {
-	if out == nil || !layout.hasContent || layout.contentHeight <= 0 || layout.cols <= 0 {
+func clearItermOutsidePreview(out *bufio.Writer, layout layout) {
+	if out == nil || !layout.showRight || !layout.hasContent || layout.previewCols <= 0 || layout.clearWidth <= 0 {
 		return
 	}
+	previewTop := layout.previewRow
+	previewBottom := layout.previewRow + layout.previewRows - 1
+	if layout.previewRows <= 0 {
+		previewTop = layout.contentTop
+		previewBottom = layout.contentBottom
+	}
+
 	saveCursor(out)
 	for row := layout.contentTop; row <= layout.contentBottom; row++ {
-		writeLineAt(out, row, 1, "", layout.cols)
+		if row >= previewTop && row <= previewBottom {
+			continue
+		}
+		writeLineAt(out, row, 1, "", layout.clearWidth)
 	}
 	restoreCursor(out)
 }
 
-var clearItermContentAreaFn = clearItermContentArea
+var clearItermOutsidePreviewFn = clearItermOutsidePreview
