@@ -158,30 +158,54 @@ func TestDrawPreviewItermClearsNewRectOnExpand(t *testing.T) {
 	}
 }
 
-func TestBuildLayoutItermKeepsStableSplitBoundary(t *testing.T) {
+func TestRenderItermClearsContentOnResend(t *testing.T) {
+	prev := clearItermContentAreaFn
+	t.Cleanup(func() { clearItermContentAreaFn = prev })
+
+	var clears int
+	clearItermContentAreaFn = func(_ *bufio.Writer, _ layout) { clears++ }
+
 	state := &appState{
+		mode:   modeBrowse,
 		inline: termcaps.InlineIterm,
+		results: []model.Result{
+			{Title: "A"},
+		},
 		currentAnim: &gifAnimation{
 			ID:     1,
 			RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
 			Width:  200,
 			Height: 100,
 		},
-	}
-	l1 := buildLayout(state, 20, 120)
-	if !l1.showRight {
-		t.Fatalf("expected showRight")
+		previewNeedsSend: true,
+		opts:             model.Options{Source: "tenor"},
 	}
 
+	var buf bytes.Buffer
+	out := bufio.NewWriter(&buf)
+
+	render(state, out, 20, 120)
+	if clears != 1 {
+		t.Fatalf("expected 1 content clear on initial send, got %d", clears)
+	}
+
+	// No resend: keep animation running (no extra clears).
+	render(state, out, 20, 120)
+	if clears != 1 {
+		t.Fatalf("expected no extra clears without resend, got %d", clears)
+	}
+
+	// Selection change -> resend -> clear again.
 	state.currentAnim = &gifAnimation{
 		ID:     2,
 		RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
 		Width:  80,
 		Height: 240,
 	}
-	l2 := buildLayout(state, 20, 120)
-	if l2.listCol != l1.listCol {
-		t.Fatalf("expected stable listCol, got %d then %d", l1.listCol, l2.listCol)
+	state.previewNeedsSend = true
+	render(state, out, 20, 120)
+	if clears != 2 {
+		t.Fatalf("expected 2 clears after resend, got %d", clears)
 	}
 }
 

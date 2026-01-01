@@ -13,7 +13,7 @@
 - TUI: make hint keys ASCII to avoid double-width glyph centering drift.
 - iTerm2: keep animated previews running after UI redraws (don’t clear preview every render).
 - iTerm2: clear previous preview when re-sending (avoid “stacked” images after reveal/resize).
-- iTerm2: stabilize split preview width + clear the gap column (fix repaint artifacts/“text bleed”).
+- iTerm2: fix repaint artifacts when preview size changes (clear content on resend + keep gap column clean).
 - TUI: show download/reveal transient status in the header (no “sticky” status row spam).
 
 ### Dev

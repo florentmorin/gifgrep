@@ -428,6 +428,15 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 
 	state.lastShowRight = layout.showRight
 
+	if state.inline == termcaps.InlineIterm && layout.showRight {
+		// iTerm inline images are part of the text grid. If the preview is about to be
+		// re-sent (selection change/resize), clear the full content area once so column
+		// shifts don't leave stale text behind, but keep animation running otherwise.
+		if shouldClearItermContent(state, layout) {
+			clearItermContentAreaFn(out, layout)
+		}
+	}
+
 	drawList(out, state, layout)
 	if state.inline == termcaps.InlineIterm && layout.showRight {
 		clearItermGapColumn(out, layout)
@@ -483,15 +492,7 @@ func buildLayout(state *appState, rows, cols int) layout {
 	layout.showRight = showRight
 
 	if showRight {
-		// iTerm inline images are part of the text grid. Keep the split boundary stable
-		// (don't resize the preview box per GIF aspect ratio), otherwise old text can
-		// "leak" when the list column shifts.
-		if state.inline == termcaps.InlineIterm {
-			layout.previewCols = maxPreviewCols
-			layout.previewRows = layout.contentHeight
-		} else {
-			layout.previewCols, layout.previewRows = fitPreviewSize(maxPreviewCols, layout.contentHeight, state.currentAnim)
-		}
+		layout.previewCols, layout.previewRows = fitPreviewSize(maxPreviewCols, layout.contentHeight, state.currentAnim)
 	} else {
 		availRows := layout.contentHeight / 2
 		if availRows < 6 {
@@ -969,3 +970,29 @@ func clearItermGapColumn(out *bufio.Writer, layout layout) {
 	}
 	restoreCursor(out)
 }
+
+func shouldClearItermContent(state *appState, layout layout) bool {
+	if state == nil || !layout.showRight || state.inline != termcaps.InlineIterm {
+		return false
+	}
+	if state.previewNeedsSend || state.previewDirty {
+		return true
+	}
+	if state.lastPreview.cols != layout.previewCols || state.lastPreview.rows != layout.previewRows {
+		return true
+	}
+	return false
+}
+
+func clearItermContentArea(out *bufio.Writer, layout layout) {
+	if out == nil || !layout.hasContent || layout.contentHeight <= 0 || layout.cols <= 0 {
+		return
+	}
+	saveCursor(out)
+	for row := layout.contentTop; row <= layout.contentBottom; row++ {
+		writeLineAt(out, row, 1, "", layout.cols)
+	}
+	restoreCursor(out)
+}
+
+var clearItermContentAreaFn = clearItermContentArea
