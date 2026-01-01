@@ -8,13 +8,15 @@ import (
 
 	"github.com/steipete/gifgrep/gifdecode"
 	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/termcaps"
 	"github.com/steipete/gifgrep/internal/testutil"
 )
 
 func TestLoadSelectedImageEdges(t *testing.T) {
 	state := &appState{
 		results: []model.Result{},
-		cache:   map[string]*gifdecode.Frames{},
+		inline:  termcaps.InlineKitty,
+		cache:   map[string]*gifCacheEntry{},
 	}
 	loadSelectedImage(state)
 	if state.currentAnim != nil {
@@ -28,8 +30,13 @@ func TestLoadSelectedImageEdges(t *testing.T) {
 		t.Fatalf("expected nil animation for empty preview url")
 	}
 
-	state.cache["https://example.test/preview.gif"] = &gifdecode.Frames{
-		Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
+	state.cache["https://example.test/preview.gif"] = &gifCacheEntry{
+		RawGIF: []byte("GIF89a\x01\x00\x01\x00"),
+		Frames: &gifdecode.Frames{
+			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
+			Width:  1,
+			Height: 1,
+		},
 		Width:  1,
 		Height: 1,
 	}
@@ -41,7 +48,7 @@ func TestLoadSelectedImageEdges(t *testing.T) {
 
 	badTransport := &testutil.FakeTransport{GIFData: []byte("not-a-gif")}
 	testutil.WithTransport(t, badTransport, func() {
-		state.cache = map[string]*gifdecode.Frames{}
+		state.cache = map[string]*gifCacheEntry{}
 		state.results = []model.Result{{Title: "bad", PreviewURL: "https://example.test/preview.gif"}}
 		state.selected = 0
 		loadSelectedImage(state)

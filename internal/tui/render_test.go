@@ -9,6 +9,7 @@ import (
 
 	"github.com/steipete/gifgrep/gifdecode"
 	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/termcaps"
 )
 
 func TestRenderDeletesOldImage(t *testing.T) {
@@ -16,7 +17,7 @@ func TestRenderDeletesOldImage(t *testing.T) {
 		mode:          modeBrowse,
 		results:       []model.Result{{Title: "A"}},
 		activeImageID: 7,
-		kittyGraphics: true,
+		inline:        termcaps.InlineKitty,
 		currentAnim:   nil,
 		opts:          model.Options{Source: "tenor"},
 	}
@@ -31,9 +32,9 @@ func TestRenderDeletesOldImage(t *testing.T) {
 
 func TestRenderWithPreviewRight(t *testing.T) {
 	state := &appState{
-		mode:         modeBrowse,
-		results:      []model.Result{{Title: "A"}},
-		kittyGraphics: true,
+		mode:    modeBrowse,
+		results: []model.Result{{Title: "A"}},
+		inline:  termcaps.InlineKitty,
 		currentAnim: &gifAnimation{
 			ID:     1,
 			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
@@ -54,9 +55,9 @@ func TestRenderWithPreviewRight(t *testing.T) {
 
 func TestRenderWithPreviewBottom(t *testing.T) {
 	state := &appState{
-		mode:         modeBrowse,
-		results:      []model.Result{{Title: "A"}},
-		kittyGraphics: true,
+		mode:    modeBrowse,
+		results: []model.Result{{Title: "A"}},
+		inline:  termcaps.InlineKitty,
 		currentAnim: &gifAnimation{
 			ID:     2,
 			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},
@@ -80,7 +81,7 @@ func TestRenderWithPreviewBottom(t *testing.T) {
 
 func TestDrawPreviewPlacement(t *testing.T) {
 	state := &appState{
-		kittyGraphics: true,
+		inline: termcaps.InlineKitty,
 		currentAnim: &gifAnimation{
 			ID:     3,
 			Frames: []gifdecode.Frame{{PNG: []byte{1, 2, 3}, Delay: 80 * time.Millisecond}},

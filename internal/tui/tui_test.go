@@ -9,6 +9,7 @@ import (
 
 	"github.com/steipete/gifgrep/gifdecode"
 	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/termcaps"
 	"github.com/steipete/gifgrep/internal/testutil"
 )
 
@@ -50,10 +51,11 @@ func TestHandleInputAndLoad(t *testing.T) {
 	gifData := testutil.MakeTestGIF()
 	testutil.WithTransport(t, &testutil.FakeTransport{GIFData: gifData}, func() {
 		state := &appState{
-			query: "cats",
-			mode:  modeQuery,
-			cache: map[string]*gifdecode.Frames{},
-			opts:  model.Options{Limit: 1, Source: "tenor"},
+			query:  "cats",
+			mode:   modeQuery,
+			inline: termcaps.InlineKitty,
+			cache:  map[string]*gifCacheEntry{},
+			opts:   model.Options{Limit: 1, Source: "tenor"},
 		}
 		var buf bytes.Buffer
 		out := bufio.NewWriter(&buf)
@@ -169,7 +171,7 @@ func TestDrawPreview(t *testing.T) {
 			Width:  frames.Width,
 			Height: frames.Height,
 		},
-		kittyGraphics:   true,
+		inline:           termcaps.InlineKitty,
 		previewNeedsSend: true,
 		previewDirty:     true,
 	}

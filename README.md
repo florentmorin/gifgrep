@@ -78,7 +78,9 @@ gifgrep sheet <gif> [--frames <N>] [--cols <N>] [--padding <px>] [-o <file>|-]
 
 - **CLI:** optimized for pipes. With `--thumbs`, it shows a *single still frame* inline (first decoded frame).
 - **TUI:** interactive browser. Inline previews are *animated* (full frame sequence).
-- Inline previews only work in **Kitty** or **Ghostty** (Kitty graphics protocol).
+- Inline previews work in terminals that support inline images:
+  - **Kitty / Ghostty:** Kitty graphics protocol.
+  - **iTerm2:** OSC 1337 inline images.
 - **Kitty:** uploads the full animation (terminal plays it).
 - **Ghostty:** software playback (gifgrep sends frames on a timer).
 
@@ -90,6 +92,10 @@ gifgrep decodes GIFs to PNG frames and streams them into the terminal via Kitty 
 - `a=T` uploads the base image; `a=f` appends animation frames (with per-frame delay).
 - `a=a` sets animation timing / starts playback; `a=p` places the image in a cell rectangle.
 - Old previews get cleaned up via `a=d` (delete by image id).
+
+## iTerm2 inline images
+
+iTerm2 uses a different protocol (OSC 1337). See `docs/iterm.md`.
 
 ## JSON output
 

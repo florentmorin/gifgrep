@@ -5,6 +5,7 @@ import (
 
 	"github.com/steipete/gifgrep/gifdecode"
 	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/termcaps"
 )
 
 type mode int
@@ -16,7 +17,15 @@ const (
 
 type gifAnimation struct {
 	ID     uint32
+	RawGIF []byte
 	Frames []gifdecode.Frame
+	Width  int
+	Height int
+}
+
+type gifCacheEntry struct {
+	RawGIF []byte
+	Frames *gifdecode.Frames
 	Width  int
 	Height int
 }
@@ -30,8 +39,8 @@ type appState struct {
 	mode        mode
 	status      string
 	currentAnim *gifAnimation
-	kittyGraphics bool
-	cache       map[string]*gifdecode.Frames
+	inline      termcaps.InlineProtocol
+	cache       map[string]*gifCacheEntry
 	savedPaths  map[string]string
 	renderDirty bool
 	lastRows    int

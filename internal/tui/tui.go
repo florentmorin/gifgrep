@@ -12,9 +12,11 @@ import (
 
 	"github.com/steipete/gifgrep/gifdecode"
 	"github.com/steipete/gifgrep/internal/assets"
+	"github.com/steipete/gifgrep/internal/iterm"
 	"github.com/steipete/gifgrep/internal/kitty"
 	"github.com/steipete/gifgrep/internal/model"
 	"github.com/steipete/gifgrep/internal/search"
+	"github.com/steipete/gifgrep/internal/termcaps"
 	"golang.org/x/term"
 )
 
@@ -45,6 +47,19 @@ func Run(opts model.Options, query string) error {
 	return runWith(env, opts, query)
 }
 
+func errUnsupportedInline(getenv func(string) string) error {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	termProgram := strings.TrimSpace(getenv("TERM_PROGRAM"))
+	term := strings.TrimSpace(getenv("TERM"))
+	return fmt.Errorf(
+		"gifgrep tui needs inline image support.\n\nSupported terminals:\n  - Kitty (Kitty graphics protocol)\n  - Ghostty (Kitty graphics protocol)\n  - iTerm2 (OSC 1337 inline images)\n\nDetected:\n  TERM_PROGRAM=%q\n  TERM=%q\n\nSee: docs/kitty.md and docs/iterm.md\n\nTip: You can force detection with GIFGREP_INLINE=kitty|iterm|none.",
+		termProgram,
+		term,
+	)
+}
+
 func runWith(env Env, opts model.Options, query string) error {
 	if env.In == nil {
 		env.In = os.Stdin
@@ -71,6 +86,11 @@ func runWith(env Env, opts model.Options, query string) error {
 		return ErrNotTerminal
 	}
 
+	inline := termcaps.DetectInline(os.Getenv)
+	if inline == termcaps.InlineNone {
+		return errUnsupportedInline(os.Getenv)
+	}
+
 	oldState, err := env.MakeRaw(env.FD)
 	if err != nil {
 		return err
@@ -83,10 +103,9 @@ func runWith(env Env, opts model.Options, query string) error {
 
 	out := bufio.NewWriter(env.Out)
 	hideCursor(out)
-	kittyGraphics := supportsKittyGraphics()
 	defer func() {
 		showCursor(out)
-		if kittyGraphics {
+		if inline == termcaps.InlineKitty {
 			clearImages(out)
 		}
 		_ = out.Flush()
@@ -105,12 +124,12 @@ func runWith(env Env, opts model.Options, query string) error {
 		mode:            modeQuery,
 		status:          "Type a search and press Enter",
 		tagline:         pickTagline(time.Now(), os.Getenv, nil),
-		cache:           map[string]*gifdecode.Frames{},
+		cache:           map[string]*gifCacheEntry{},
 		savedPaths:      map[string]string{},
 		renderDirty:     true,
 		nextImageID:     1,
-		kittyGraphics:   kittyGraphics,
-		useSoftwareAnim: useSoftwareAnimation(),
+		inline:          inline,
+		useSoftwareAnim: inline == termcaps.InlineKitty && useSoftwareAnimation(),
 		useColor:        opts.Color != "never",
 		opts:            opts,
 	}
@@ -375,7 +394,7 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 	layout := buildLayout(state, rows, cols)
 
 	if state.currentAnim == nil && state.activeImageID != 0 {
-		if state.kittyGraphics {
+		if state.inline == termcaps.InlineKitty {
 			kitty.DeleteImage(out, state.activeImageID)
 		}
 		state.activeImageID = 0
@@ -527,20 +546,6 @@ func drawPreviewIfNeeded(out *bufio.Writer, state *appState, layout layout) {
 	if state.currentAnim == nil || layout.previewCols <= 0 || layout.previewRows <= 0 {
 		return
 	}
-	if !state.kittyGraphics {
-		msg := styleIf(state.useColor, "Previews: Kitty / Ghostty", "\x1b[90m")
-		if layout.showRight {
-			writeLineAt(out, layout.previewRow+layout.previewRows/2, 1, msg, layout.previewCols)
-			return
-		}
-		label := styleIf(state.useColor, "Preview", "\x1b[90m")
-		writeLineAt(out, layout.contentTop+layout.listHeight, 1, label, layout.cols)
-		for i := 0; i < layout.previewRows; i++ {
-			writeLineAt(out, layout.previewRow+i, 1, "", layout.cols)
-		}
-		writeLineAt(out, layout.previewRow+layout.previewRows/2, 1, msg, layout.cols)
-		return
-	}
 	if layout.showRight {
 		state.previewCol = 1
 		state.previewRow = layout.previewRow
@@ -567,7 +572,7 @@ func drawStatus(out *bufio.Writer, state *appState, layout layout) {
 	}
 	source := search.ResolveSource(state.opts.Source)
 	showGiphyAttribution := source == "giphy"
-	showGiphyIcon := showGiphyAttribution && state.kittyGraphics
+	showGiphyIcon := showGiphyAttribution && state.inline == termcaps.InlineKitty
 	logoCols := 2
 	logoRows := 1
 	statusWidth := layout.cols
@@ -583,7 +588,7 @@ func drawStatus(out *bufio.Writer, state *appState, layout layout) {
 		moveCursor(out, layout.statusRow, maxInt(1, layout.cols-logoCols+1))
 		kitty.SendFrame(out, giphyAttributionImageID, gifdecode.Frame{PNG: assets.GiphyIcon32PNG()}, logoCols, logoRows)
 		state.giphyAttributionShown = true
-	} else if state.giphyAttributionShown && state.kittyGraphics {
+	} else if state.giphyAttributionShown && state.inline == termcaps.InlineKitty {
 		kitty.DeleteImage(out, giphyAttributionImageID)
 		state.giphyAttributionShown = false
 	}
@@ -707,10 +712,32 @@ func fitPreviewSize(availCols, availRows int, anim *gifAnimation) (int, int) {
 }
 
 func drawPreview(state *appState, out *bufio.Writer, cols, rows int, row, col int) {
-	if !state.kittyGraphics {
+	if state.currentAnim == nil {
 		return
 	}
-	if state.currentAnim == nil || len(state.currentAnim.Frames) == 0 {
+	if state.inline == termcaps.InlineIterm {
+		if len(state.currentAnim.RawGIF) == 0 {
+			return
+		}
+		if !state.previewNeedsSend && !state.previewDirty && state.lastPreview.cols == cols && state.lastPreview.rows == rows {
+			return
+		}
+		saveCursor(out)
+		moveCursor(out, row, col)
+		iterm.SendInlineFile(out, iterm.File{
+			Name:        "gifgrep.gif",
+			Data:        state.currentAnim.RawGIF,
+			WidthCells:  cols,
+			HeightCells: rows,
+		})
+		restoreCursor(out)
+		state.previewNeedsSend = false
+		state.previewDirty = false
+		state.lastPreview.cols = cols
+		state.lastPreview.rows = rows
+		return
+	}
+	if len(state.currentAnim.Frames) == 0 {
 		return
 	}
 	if state.useSoftwareAnim && len(state.currentAnim.Frames) > 1 {
@@ -749,9 +776,6 @@ func writeLineAt(out *bufio.Writer, row, col int, text string, width int) {
 }
 
 func drawPreviewSoftware(state *appState, out *bufio.Writer, cols, rows int, row, col int) {
-	if !state.kittyGraphics {
-		return
-	}
 	if state.currentAnim == nil || len(state.currentAnim.Frames) == 0 {
 		return
 	}
@@ -787,9 +811,6 @@ func drawPreviewSoftware(state *appState, out *bufio.Writer, cols, rows int, row
 }
 
 func advanceManualAnimation(state *appState, out *bufio.Writer) {
-	if !state.kittyGraphics {
-		return
-	}
 	if !state.manualAnim || state.currentAnim == nil {
 		return
 	}

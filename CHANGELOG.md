@@ -2,12 +2,19 @@
 
 ## 0.1.1 - Unreleased
 
+### Features
+- Inline previews: add iTerm2 support (OSC 1337) for TUI preview and CLI `--thumbs`.
+
 ### Fixes
 - TUI: `f` (reveal) now auto-downloads the selected GIF if needed, then reveals it.
 - TUI: avoid emitting Kitty graphics sequences on unsupported terminals (no more base64 spew).
+- TUI: when inline images aren’t supported, exit with a helpful “supported terminals / protocol” message.
 
 ### Dev
 - Replace pnpm workflow with `make` + npm (`make snap`, `make gifgrep ...`).
+
+### Docs
+- Add `docs/kitty.md` and `docs/iterm.md` (protocol notes).
 
 ## 0.1.0 - 2025-12-31
 

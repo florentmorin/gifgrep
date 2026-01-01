@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/steipete/gifgrep/gifdecode"
+	"github.com/steipete/gifgrep/internal/termcaps"
 )
 
 func TestSoftwareAnimationAdvance(t *testing.T) {
 	state := &appState{
 		useSoftwareAnim: true,
-		kittyGraphics:   true,
+		inline:          termcaps.InlineKitty,
 		currentAnim: &gifAnimation{
 			ID: 1,
 			Frames: []gifdecode.Frame{
@@ -48,7 +49,7 @@ func TestSoftwareAnimationAdvance(t *testing.T) {
 func TestDrawPreviewSoftwareDirty(t *testing.T) {
 	state := &appState{
 		useSoftwareAnim: true,
-		kittyGraphics:   true,
+		inline:          termcaps.InlineKitty,
 		currentAnim: &gifAnimation{
 			ID: 1,
 			Frames: []gifdecode.Frame{

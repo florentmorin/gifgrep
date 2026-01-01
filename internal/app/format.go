@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"github.com/steipete/gifgrep/gifdecode"
+	"github.com/steipete/gifgrep/internal/iterm"
 	"github.com/steipete/gifgrep/internal/kitty"
 	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/termcaps"
 	"golang.org/x/term"
 )
 
@@ -48,8 +50,16 @@ var (
 		decodeOpts.MaxFrames = 1
 		return gifdecode.Decode(data, decodeOpts)
 	}
-	sendThumbFrame = func(out *bufio.Writer, id uint32, frame gifdecode.Frame, cols, rows int) {
+	sendThumbKitty = func(out *bufio.Writer, id uint32, frame gifdecode.Frame, cols, rows int) {
 		kitty.SendFrame(out, id, frame, cols, rows)
+	}
+	sendThumbIterm = func(out *bufio.Writer, data []byte, cols, rows int) {
+		iterm.SendInlineFile(out, iterm.File{
+			Name:        "thumb.png",
+			Data:        data,
+			WidthCells:  cols,
+			HeightCells: rows,
+		})
 	}
 )
 
@@ -75,44 +85,33 @@ func resolveThumbsMode(opts model.Options) thumbsMode {
 	return m
 }
 
-func wantsThumbnails(opts model.Options, stdout io.Writer, format outputFormat) bool {
+func thumbsProtocol(opts model.Options, stdout io.Writer, format outputFormat) termcaps.InlineProtocol {
 	if format != formatPlain {
-		return false
+		return termcaps.InlineNone
 	}
 	if !isTerminalWriter(stdout) {
-		return false
+		return termcaps.InlineNone
 	}
 	switch resolveThumbsMode(opts) {
 	case thumbsNever:
-		return false
+		return termcaps.InlineNone
 	case thumbsAlways:
-		return supportsKittyGraphics()
+		return termcaps.DetectInline(os.Getenv)
 	case thumbsAuto:
-		return supportsKittyGraphics()
+		return termcaps.DetectInline(os.Getenv)
 	}
-	return supportsKittyGraphics()
-}
-
-func supportsKittyGraphics() bool {
-	if os.Getenv("KITTY_WINDOW_ID") != "" {
-		return true
-	}
-	termProgram := strings.ToLower(os.Getenv("TERM_PROGRAM"))
-	if strings.Contains(termProgram, "ghostty") {
-		return true
-	}
-	termEnv := strings.ToLower(os.Getenv("TERM"))
-	return strings.Contains(termEnv, "xterm-kitty") || strings.Contains(termEnv, "ghostty")
+	return termcaps.DetectInline(os.Getenv)
 }
 
 func renderPlain(
 	out *bufio.Writer,
 	opts model.Options,
 	useColor bool,
-	withThumbs bool,
+	thumbs termcaps.InlineProtocol,
 	results []model.Result,
 ) {
 	nextID := uint32(1)
+	withThumbs := thumbs != termcaps.InlineNone
 	for i, res := range results {
 		title := normalizeTitle(res)
 		url := res.URL
@@ -123,7 +122,7 @@ func renderPlain(
 		}
 
 		if withThumbs {
-			if err := renderThumbBlock(out, nextID, res, nPrefix, title, url, useColor); err != nil {
+			if err := renderThumbBlock(out, thumbs, nextID, res, nPrefix, title, url, useColor); err != nil {
 				withThumbs = false
 			} else {
 				nextID++
@@ -143,7 +142,7 @@ func renderPlain(
 	}
 }
 
-func renderThumbBlock(out *bufio.Writer, id uint32, res model.Result, nPrefix, title, url string, useColor bool) error {
+func renderThumbBlock(out *bufio.Writer, thumbs termcaps.InlineProtocol, id uint32, res model.Result, nPrefix, title, url string, useColor bool) error {
 	src := res.PreviewURL
 	if src == "" {
 		src = res.URL
@@ -166,7 +165,14 @@ func renderThumbBlock(out *bufio.Writer, id uint32, res model.Result, nPrefix, t
 		rows = clampInt(3, 10, int(float64(cols)*0.5*float64(res.Height)/float64(res.Width)))
 	}
 
-	sendThumbFrame(out, id, decoded.Frames[0], cols, rows)
+	switch thumbs {
+	case termcaps.InlineIterm:
+		sendThumbIterm(out, decoded.Frames[0].PNG, cols, rows)
+	case termcaps.InlineKitty:
+		fallthrough
+	default:
+		sendThumbKitty(out, id, decoded.Frames[0], cols, rows)
+	}
 	for r := 0; r < rows; r++ {
 		line := ""
 		switch r {

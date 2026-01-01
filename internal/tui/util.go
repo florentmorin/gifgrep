@@ -121,26 +121,6 @@ func useSoftwareAnimation() bool {
 	return false
 }
 
-func supportsKittyGraphics() bool {
-	if os.Getenv("KITTY_WINDOW_ID") != "" {
-		return true
-	}
-
-	termProgram := strings.ToLower(os.Getenv("TERM_PROGRAM"))
-	if strings.Contains(termProgram, "apple_terminal") {
-		return false
-	}
-	if strings.Contains(termProgram, "iterm") || os.Getenv("ITERM_SESSION_ID") != "" {
-		return false
-	}
-	if strings.Contains(termProgram, "ghostty") {
-		return true
-	}
-
-	termEnv := strings.ToLower(os.Getenv("TERM"))
-	return strings.Contains(termEnv, "xterm-kitty") || strings.Contains(termEnv, "ghostty")
-}
-
 func styleIf(enabled bool, text string, codes ...string) string {
 	if !enabled || len(codes) == 0 {
 		return text

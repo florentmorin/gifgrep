@@ -13,6 +13,7 @@ import (
 )
 
 func TestRunTUIWithQuit(t *testing.T) {
+	t.Setenv("GIFGREP_INLINE", "kitty")
 	var restored bool
 	env := Env{
 		In:  bytes.NewReader([]byte("q")),
@@ -43,6 +44,7 @@ func TestRunTUIWithQuit(t *testing.T) {
 }
 
 func TestRunTUIWithSearch(t *testing.T) {
+	t.Setenv("GIFGREP_INLINE", "kitty")
 	gifData := testutil.MakeTestGIF()
 	testutil.WithTransport(t, &testutil.FakeTransport{GIFData: gifData}, func() {
 		env := Env{

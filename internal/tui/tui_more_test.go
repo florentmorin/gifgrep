@@ -21,6 +21,7 @@ func TestRunTUIWithDefaultsNotTerminal(t *testing.T) {
 }
 
 func TestRunTUIWithNoRestore(t *testing.T) {
+	t.Setenv("GIFGREP_INLINE", "kitty")
 	env := Env{
 		In:         bytes.NewReader([]byte("q")),
 		Out:        io.Discard,
@@ -36,6 +37,7 @@ func TestRunTUIWithNoRestore(t *testing.T) {
 }
 
 func TestRunTUIWithSearchError(t *testing.T) {
+	t.Setenv("GIFGREP_INLINE", "kitty")
 	env := Env{
 		In:         bytes.NewReader([]byte("q")),
 		Out:        io.Discard,
@@ -52,6 +54,7 @@ func TestRunTUIWithSearchError(t *testing.T) {
 }
 
 func TestRunTUIWithSizeError(t *testing.T) {
+	t.Setenv("GIFGREP_INLINE", "kitty")
 	env := Env{
 		In:         bytes.NewReader([]byte("q")),
 		Out:        io.Discard,
@@ -79,6 +82,7 @@ func (t *emptyTenorTransport) RoundTrip(_ *http.Request) (*http.Response, error)
 }
 
 func TestRunTUIWithEmptyResultsAndSignal(t *testing.T) {
+	t.Setenv("GIFGREP_INLINE", "kitty")
 	testutil.WithTransport(t, &emptyTenorTransport{}, func() {
 		sigs := make(chan os.Signal, 1)
 		sigs <- os.Interrupt

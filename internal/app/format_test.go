@@ -10,6 +10,7 @@ import (
 
 	"github.com/steipete/gifgrep/gifdecode"
 	"github.com/steipete/gifgrep/internal/model"
+	"github.com/steipete/gifgrep/internal/termcaps"
 )
 
 func TestResolveOutputFormatAutoTTY(t *testing.T) {
@@ -38,7 +39,7 @@ func TestRenderPlainNoThumbs(t *testing.T) {
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)
 
-	renderPlain(out, model.Options{Number: true}, false, false, []model.Result{
+	renderPlain(out, model.Options{Number: true}, false, termcaps.InlineNone, []model.Result{
 		{Title: "A dog", URL: "https://example.test/a.gif"},
 	})
 	_ = out.Flush()
@@ -55,25 +56,25 @@ func TestRenderPlainNoThumbs(t *testing.T) {
 func TestRenderPlainThumbsNoExtraBlankLine(t *testing.T) {
 	prevFetch := fetchThumb
 	prevDecode := decodeThumb
-	prevSend := sendThumbFrame
+	prevSend := sendThumbKitty
 	t.Cleanup(func() {
 		fetchThumb = prevFetch
 		decodeThumb = prevDecode
-		sendThumbFrame = prevSend
+		sendThumbKitty = prevSend
 	})
 
 	fetchThumb = func(_ string) ([]byte, error) { return []byte("gif"), nil }
 	decodeThumb = func(_ []byte) (*gifdecode.Frames, error) {
 		return &gifdecode.Frames{Frames: []gifdecode.Frame{{PNG: []byte{1}}}}, nil
 	}
-	sendThumbFrame = func(out *bufio.Writer, id uint32, _ gifdecode.Frame, _, _ int) {
+	sendThumbKitty = func(out *bufio.Writer, id uint32, _ gifdecode.Frame, _, _ int) {
 		_, _ = fmt.Fprintf(out, "<IMG%d>", id)
 	}
 
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)
 
-	renderPlain(out, model.Options{}, false, true, []model.Result{
+	renderPlain(out, model.Options{}, false, termcaps.InlineKitty, []model.Result{
 		{Title: "A", URL: "https://example.test/a.gif"},
 		{Title: "B", URL: "https://example.test/b.gif"},
 	})
