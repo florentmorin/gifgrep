@@ -83,9 +83,12 @@ func runWith(env Env, opts model.Options, query string) error {
 
 	out := bufio.NewWriter(env.Out)
 	hideCursor(out)
+	kittyGraphics := supportsKittyGraphics()
 	defer func() {
 		showCursor(out)
-		clearImages(out)
+		if kittyGraphics {
+			clearImages(out)
+		}
 		_ = out.Flush()
 	}()
 
@@ -106,6 +109,7 @@ func runWith(env Env, opts model.Options, query string) error {
 		savedPaths:      map[string]string{},
 		renderDirty:     true,
 		nextImageID:     1,
+		kittyGraphics:   kittyGraphics,
 		useSoftwareAnim: useSoftwareAnimation(),
 		useColor:        opts.Color != "never",
 		opts:            opts,
@@ -371,7 +375,9 @@ func render(state *appState, out *bufio.Writer, rows, cols int) {
 	layout := buildLayout(state, rows, cols)
 
 	if state.currentAnim == nil && state.activeImageID != 0 {
-		kitty.DeleteImage(out, state.activeImageID)
+		if state.kittyGraphics {
+			kitty.DeleteImage(out, state.activeImageID)
+		}
 		state.activeImageID = 0
 	}
 
@@ -521,6 +527,20 @@ func drawPreviewIfNeeded(out *bufio.Writer, state *appState, layout layout) {
 	if state.currentAnim == nil || layout.previewCols <= 0 || layout.previewRows <= 0 {
 		return
 	}
+	if !state.kittyGraphics {
+		msg := styleIf(state.useColor, "Previews: Kitty / Ghostty", "\x1b[90m")
+		if layout.showRight {
+			writeLineAt(out, layout.previewRow+layout.previewRows/2, 1, msg, layout.previewCols)
+			return
+		}
+		label := styleIf(state.useColor, "Preview", "\x1b[90m")
+		writeLineAt(out, layout.contentTop+layout.listHeight, 1, label, layout.cols)
+		for i := 0; i < layout.previewRows; i++ {
+			writeLineAt(out, layout.previewRow+i, 1, "", layout.cols)
+		}
+		writeLineAt(out, layout.previewRow+layout.previewRows/2, 1, msg, layout.cols)
+		return
+	}
 	if layout.showRight {
 		state.previewCol = 1
 		state.previewRow = layout.previewRow
@@ -547,10 +567,11 @@ func drawStatus(out *bufio.Writer, state *appState, layout layout) {
 	}
 	source := search.ResolveSource(state.opts.Source)
 	showGiphyAttribution := source == "giphy"
+	showGiphyIcon := showGiphyAttribution && state.kittyGraphics
 	logoCols := 2
 	logoRows := 1
 	statusWidth := layout.cols
-	if showGiphyAttribution {
+	if showGiphyIcon {
 		statusWidth = maxInt(0, layout.cols-(logoCols+1))
 	}
 	line := formatStatusLine(state.useColor, status)
@@ -558,11 +579,11 @@ func drawStatus(out *bufio.Writer, state *appState, layout layout) {
 		line += styleIf(state.useColor, " · Powered by GIPHY", "\x1b[90m")
 	}
 	writeLineAt(out, layout.statusRow, 1, line, statusWidth)
-	if showGiphyAttribution && layout.cols >= logoCols {
+	if showGiphyIcon && layout.cols >= logoCols {
 		moveCursor(out, layout.statusRow, maxInt(1, layout.cols-logoCols+1))
 		kitty.SendFrame(out, giphyAttributionImageID, gifdecode.Frame{PNG: assets.GiphyIcon32PNG()}, logoCols, logoRows)
 		state.giphyAttributionShown = true
-	} else if state.giphyAttributionShown {
+	} else if state.giphyAttributionShown && state.kittyGraphics {
 		kitty.DeleteImage(out, giphyAttributionImageID)
 		state.giphyAttributionShown = false
 	}
@@ -686,6 +707,9 @@ func fitPreviewSize(availCols, availRows int, anim *gifAnimation) (int, int) {
 }
 
 func drawPreview(state *appState, out *bufio.Writer, cols, rows int, row, col int) {
+	if !state.kittyGraphics {
+		return
+	}
 	if state.currentAnim == nil || len(state.currentAnim.Frames) == 0 {
 		return
 	}
@@ -725,6 +749,9 @@ func writeLineAt(out *bufio.Writer, row, col int, text string, width int) {
 }
 
 func drawPreviewSoftware(state *appState, out *bufio.Writer, cols, rows int, row, col int) {
+	if !state.kittyGraphics {
+		return
+	}
 	if state.currentAnim == nil || len(state.currentAnim.Frames) == 0 {
 		return
 	}
@@ -760,6 +787,9 @@ func drawPreviewSoftware(state *appState, out *bufio.Writer, cols, rows int, row
 }
 
 func advanceManualAnimation(state *appState, out *bufio.Writer) {
+	if !state.kittyGraphics {
+		return
+	}
 	if !state.manualAnim || state.currentAnim == nil {
 		return
 	}

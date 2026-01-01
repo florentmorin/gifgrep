@@ -13,6 +13,7 @@ import (
 func TestSoftwareAnimationAdvance(t *testing.T) {
 	state := &appState{
 		useSoftwareAnim: true,
+		kittyGraphics:   true,
 		currentAnim: &gifAnimation{
 			ID: 1,
 			Frames: []gifdecode.Frame{
@@ -47,6 +48,7 @@ func TestSoftwareAnimationAdvance(t *testing.T) {
 func TestDrawPreviewSoftwareDirty(t *testing.T) {
 	state := &appState{
 		useSoftwareAnim: true,
+		kittyGraphics:   true,
 		currentAnim: &gifAnimation{
 			ID: 1,
 			Frames: []gifdecode.Frame{

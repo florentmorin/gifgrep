@@ -79,6 +79,8 @@ gifgrep sheet <gif> [--frames <N>] [--cols <N>] [--padding <px>] [-o <file>|-]
 - **CLI:** optimized for pipes. With `--thumbs`, it shows a *single still frame* inline (first decoded frame).
 - **TUI:** interactive browser. Inline previews are *animated* (full frame sequence).
 - Inline previews only work in **Kitty** or **Ghostty** (Kitty graphics protocol).
+- **Kitty:** uploads the full animation (terminal plays it).
+- **Ghostty:** software playback (gifgrep sends frames on a timer).
 
 ## How inline previews work (Kitty graphics protocol)
 
@@ -97,7 +99,7 @@ gifgrep decodes GIFs to PNG frames and streams them into the terminal via Kitty 
 
 - `TENOR_API_KEY` (optional)
 - `GIPHY_API_KEY` (required for `--source giphy`)
-- `GIFGREP_SOFTWARE_ANIM=1` (force software animation)
+- `GIFGREP_SOFTWARE_ANIM=1` (force software playback; default on Ghostty)
 - `GIFGREP_CELL_ASPECT=0.5` (tweak preview cell geometry)
 
 ## Test fixtures licensing
@@ -107,15 +109,16 @@ See `docs/gif-sources.md`.
 ## Development
 
 ```bash
-go test ./...
-go run ./cmd/gifgrep --help
+make test
+make gifgrep GIFGREP_ARGS="--help"
 ```
 
 Ghostty web snapshot:
 
 ```bash
-pnpm install
-pnpm snap
+npm install
+npx playwright install chromium
+make snap
 ```
 
 ## GitHub Pages

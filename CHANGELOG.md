@@ -4,6 +4,10 @@
 
 ### Fixes
 - TUI: `f` (reveal) now auto-downloads the selected GIF if needed, then reveals it.
+- TUI: avoid emitting Kitty graphics sequences on unsupported terminals (no more base64 spew).
+
+### Dev
+- Replace pnpm workflow with `make` + npm (`make snap`, `make gifgrep ...`).
 
 ## 0.1.0 - 2025-12-31
 

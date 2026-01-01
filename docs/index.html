@@ -32,9 +32,9 @@
             inline (kitty protocol) when you feel fancy.
           </p>
           <div class="pills" aria-label="Highlights">
-            <div class="pill"><b>default</b> prints URLs (pipes love this)</div>
+            <div class="pill"><b>default</b> prints plain (TTY) / URLs (pipe)</div>
             <div class="pill"><b>--json</b> when you need metadata</div>
-            <div class="pill"><b>--tui</b> for arrow-key browsing</div>
+            <div class="pill"><b>tui</b> for arrow-key browsing</div>
           </div>
           <p class="fineprint">
             If <code>GIPHY_API_KEY</code> is set, gifgrep prefers GIPHY. Otherwise it uses Tenor (with an optional
@@ -57,7 +57,7 @@ https://media.tenor.com/.../cat-typing.gif
 https://media.tenor.com/.../cat-yes.gif
 https://media.tenor.com/.../cat-stare.gif
 
-$ gifgrep --tui "office handshake"
+$ gifgrep tui "office handshake"
               </span>
             </div>
           </div>
@@ -102,10 +102,10 @@ $ gifgrep --tui "office handshake"
           <div class="section">
             <h2>Use</h2>
             <ul>
-              <li><code>gifgrep cats</code> prints URLs (perfect for pipes).</li>
+              <li><code>gifgrep cats</code> prints plain (TTY) / URLs (pipes).</li>
               <li><code>gifgrep cats --json</code> prints structured results.</li>
-              <li><code>gifgrep --tui cats</code> opens the interactive browser.</li>
-              <li><code>-i</code>, <code>-E</code>, <code>--mood</code>, <code>-v</code> for “grep but for vibes”.</li>
+              <li><code>gifgrep tui cats</code> opens the interactive browser.</li>
+              <li><code>gifgrep cats -m 5 --thumbs</code> shows inline still thumbs (Kitty/Ghostty).</li>
             </ul>
           </div>
         </div>
@@ -117,7 +117,7 @@ $ gifgrep --tui "office handshake"
               <li>Inline previews use Kitty graphics (Kitty, Ghostty).</li>
               <li>CLI thumbs are a still frame; animations are TUI-only.</li>
               <li>
-                Ghostty currently wants software animation:
+                Kitty plays the real animation; Ghostty uses software playback:
                 <code>GIFGREP_SOFTWARE_ANIM=1</code> (auto-detected).
               </li>
               <li>

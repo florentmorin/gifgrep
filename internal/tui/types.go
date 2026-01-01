@@ -30,6 +30,7 @@ type appState struct {
 	mode        mode
 	status      string
 	currentAnim *gifAnimation
+	kittyGraphics bool
 	cache       map[string]*gifdecode.Frames
 	savedPaths  map[string]string
 	renderDirty bool

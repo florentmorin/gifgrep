@@ -108,7 +108,7 @@ async function main() {
     playwright = await import('playwright');
   } catch (err) {
     console.error('playwright not installed.');
-    console.error('Run: pnpm dlx playwright@latest install chromium');
+    console.error('Run: npm install && npx playwright install chromium');
     demo.kill('SIGINT');
     process.exit(1);
   }

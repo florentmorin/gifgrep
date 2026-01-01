@@ -169,6 +169,7 @@ func TestDrawPreview(t *testing.T) {
 			Width:  frames.Width,
 			Height: frames.Height,
 		},
+		kittyGraphics:   true,
 		previewNeedsSend: true,
 		previewDirty:     true,
 	}
