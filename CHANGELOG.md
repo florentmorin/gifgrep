@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.2 — Unreleased
+## 0.2.3 — Unreleased
+
+## 0.2.2 - 2026-01-22
 
 ### Docs
 - Help: add explicit Tenor `--source` example.
