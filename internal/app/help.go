@@ -195,8 +195,9 @@ func rootHelpExtras() []string {
 		"  gifgrep sheet cat.gif --frames 12 --cols 4 -o sheet.png",
 		"",
 		"Environment:",
-		"  TENOR_API_KEY  optional (defaults to Tenor demo key)",
-		"  GIPHY_API_KEY  required for --source giphy",
+		"  TENOR_API_KEY    optional (defaults to Tenor demo key)",
+		"  GIPHY_API_KEY    required for --source giphy",
+		"  HEYPSTER_API_KEY required for --source heypster",
 	}
 }
 
@@ -213,6 +214,7 @@ func searchHelpExtras() []string {
 		"  gifgrep search --json cats | jq '.[] | .url'",
 		"  gifgrep search --source tenor cats",
 		"  GIPHY_API_KEY=... gifgrep search --source giphy cats",
+		"  HEYPSTER_API_KEY=... gifgrep search --source heypster \"star wars\"",
 	}
 }
 

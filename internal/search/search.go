@@ -33,6 +33,8 @@ func Search(query string, opts model.Options) ([]model.Result, error) {
 		return fetchTenorV1(query, opts)
 	case "giphy":
 		return fetchGiphyV1(query, opts)
+	case "heypster":
+		return fetchHeypsterV1(query, opts)
 	default:
 		return nil, fmt.Errorf("unknown source: %s", opts.Source)
 	}

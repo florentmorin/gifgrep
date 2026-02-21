@@ -32,6 +32,34 @@ func (t *FakeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
 			Body:       io.NopCloser(strings.NewReader(body)),
 		}, nil
+	case "heypster-gif.com":
+		if strings.HasPrefix(req.URL.Path, "/sdk/tags/") {
+			body := `[{"id":42,"tag":"cats"}]`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}
+		if strings.HasPrefix(req.URL.Path, "/sdk/gifs-tags/") {
+			body := `{"data":[{"id":1,"gif_mini":"gifs/cat1-mini.gif","gif":"gifs/cat1.gif","h265":"gifs/cat1.mp4","tags":[{"id":42,"tag":"cats"}]}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}
+		if strings.HasPrefix(req.URL.Path, "/gifs/") {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"image/gif"}},
+				Body:       io.NopCloser(bytes.NewReader(t.GIFData)),
+			}, nil
+		}
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Body:       io.NopCloser(strings.NewReader("not found")),
+		}, nil
 	case "example.test":
 		if req.URL.Path == "/preview.gif" || req.URL.Path == "/full.gif" {
 			return &http.Response{
